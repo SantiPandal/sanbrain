@@ -2,38 +2,29 @@
 
 Route user intent to the right skill. The harness reads this file to dispatch.
 
-## Always-On (post-write hook)
+## Cron-Driven (autonomous, no user trigger)
 
-| Trigger | Skill |
-|---------|-------|
-| Any page written or updated | `skills/entity-propagate/SKILL.md` |
+| Trigger | Skill | Schedule |
+|---------|-------|----------|
+| Nightly ingest | `skills/ingest/SKILL.md` | 10:00 PM |
+| Claude session extraction | `skills/claude-extract/SKILL.md` | 10:30 PM |
+| Entity back-links and enrichment | `skills/entity-update/SKILL.md` | 11:00 PM |
+| Context file refresh | `skills/context-maintain/SKILL.md` | 11:15 PM |
+| Morning deliverable | `skills/morning-brief/SKILL.md` | 7:00 AM |
 
-## Capture
+## Manual Triggers
 
-| Trigger | Skill |
-|---------|-------|
-| "extract from claude", "pull claude sessions", "what did I discuss" | `skills/claude-extract/SKILL.md` |
-| "process this meeting", "ingest meeting", "meeting with [person]" | `skills/meeting-ingest/SKILL.md` |
-| "ingest this", "save this video", "capture this thread", [URL pasted] | `skills/media-ingest/SKILL.md` |
-| "mirror this book", "book mirror", "read [book] through my life" | `skills/book-mirror/SKILL.md` |
-
-## Processing
-
-| Trigger | Skill |
-|---------|-------|
-| "enrich [person]", "who is [person]", "tell me about [person]" | `skills/enrich/SKILL.md` |
-| Mention count crosses tier threshold (automatic) | `skills/enrich/SKILL.md` |
-
-## Output
-
-| Trigger | Skill |
-|---------|-------|
-| "daily compile", "dream cycle", "what connected today" | `skills/daily-compile/SKILL.md` |
-| "prep my context", "update claude code context", "morning briefing" | `skills/context-for-claude-code/SKILL.md` |
+| Trigger Phrase | Skill |
+|----------------|-------|
+| "ingest", "process raw", "scan raw folder" | `skills/ingest/SKILL.md` |
+| "extract from claude", "pull claude sessions", "sync claude" | `skills/claude-extract/SKILL.md` |
+| "update entities", "propagate entities" | `skills/entity-update/SKILL.md` |
+| "update context", "refresh context", "what's current" | `skills/context-maintain/SKILL.md` |
+| "morning brief", "daily brief", "brief me" | `skills/morning-brief/SKILL.md` |
 
 ## Disambiguation
 
 When multiple skills match:
-1. Check content type (URL → media-ingest, transcript → meeting-ingest)
+1. Check content type (files in raw/ -> ingest, Claude sessions -> claude-extract)
 2. Check explicit trigger phrase
 3. Ask the user
