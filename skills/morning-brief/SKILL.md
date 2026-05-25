@@ -223,6 +223,7 @@ Aggregate all items requiring Santiago's review or decision:
 3. **Stale pages**: entity pages where compiled truth references facts older than 30 days with no recent confirmation. Context files not refreshed in 7+ days.
 4. **Unresolved open threads**: action items from entity or project pages that have been open for 14+ days.
 5. **Failed skill runs**: any errors logged by other skills since the last brief.
+6. **Downloads one-way doors**: If `raw/downloads-manifest-*.md` exists for today or yesterday, read it and include the `## One-Way Doors` section as a sub-section of Attention Required. Present the checkboxes as-is — Santiago checks items to approve deletion (nightly.sh reads his checks and deletes approved files). Group header: "### Downloads — pending deletion approval".
 
 Each attention item must be actionable: state what Santiago needs to DO, not just what happened.
 
