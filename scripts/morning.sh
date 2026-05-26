@@ -9,11 +9,31 @@ SANBRAIN="$HOME/sanbrain"
 VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT"
 TODAY=$(date +%Y-%m-%d)
 BRIEF_FILE="wiki/daily/${TODAY}-brief.md"
+LOG="$SANBRAIN/logs/morning.log"
+SENTINEL="$SANBRAIN/logs/.nightly-last-success"
+
+ts() { date +%Y-%m-%dT%H:%M:%S; }
+
+# Prevent system sleep during run
+caffeinate -i -w $$ &
 
 # Pre-flight: check claude is authenticated
 if ! "$CLAUDE" auth status 2>&1 | grep -q '"loggedIn": true'; then
-  echo "ERROR: claude not logged in. Run: claude login" >&2
+  echo "$(ts) ERROR: claude not logged in" >> "$LOG"
   exit 1
+fi
+
+# ── Recover missed nightly ──────────────────────────────────────
+YESTERDAY=$(date -v-1d +%Y-%m-%d)
+NIGHTLY_RAN=false
+if [ -f "$SENTINEL" ]; then
+  last_success=$(cat "$SENTINEL" | cut -dT -f1)
+  [ "$last_success" = "$YESTERDAY" ] || [ "$last_success" = "$TODAY" ] && NIGHTLY_RAN=true
+fi
+if [ "$NIGHTLY_RAN" = false ]; then
+  echo "$(ts) Nightly missed — running recovery before brief" >> "$LOG"
+  "$SANBRAIN/scripts/nightly.sh"
+  echo "$(ts) Nightly recovery complete" >> "$LOG"
 fi
 
 # ── Phase A: Get today's calendar events ─────────────────────────

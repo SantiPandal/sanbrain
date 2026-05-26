@@ -25,6 +25,13 @@ DELETED=()
 
 log() { echo "$(date +%Y-%m-%dT%H:%M:%S) $1" >> "$LOG"; }
 
+# ── Pre-flight: verify Downloads access ──────────────────────────
+if ! ls "$DOWNLOADS" >/dev/null 2>&1; then
+  log "=== Downloads harvest SKIPPED: cannot access $DOWNLOADS (FDA not granted) ==="
+  echo "Downloads harvest: SKIPPED (no access)"
+  exit 0
+fi
+
 # ── Classification functions ─────────────────────────────────────
 
 is_sacred() {
@@ -159,8 +166,9 @@ while IFS= read -r -d '' d; do
     rm -rf "$d" 2>/dev/null && DELETED+=("$dir_base/") && log "JUNK dir deleted: $dir_base/"
     continue
   fi
-  dir_size=$(du -sh "$d" 2>/dev/null | cut -f1)
-  file_count=$(find "$d" -type f 2>/dev/null | wc -l | tr -d ' ')
+  dir_size=$(timeout 30 du -sh "$d" 2>/dev/null | cut -f1)
+  [ -z "$dir_size" ] && dir_size="??"
+  file_count=$(timeout 30 find "$d" -type f 2>/dev/null | wc -l | tr -d ' ')
   ONE_WAY_DOORS+=("folder|$dir_base/|$dir_size (${file_count} files)|$(stat -f "%Sm" -t "%Y-%m-%d" "$d" 2>/dev/null)")
   log "ONE-WAY folder: $dir_base/ ($dir_size, $file_count files)"
 done < <(find "$DOWNLOADS" -maxdepth 1 -type d -not -path "$DOWNLOADS" -print0 2>/dev/null)
