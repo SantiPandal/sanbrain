@@ -44,6 +44,7 @@ VAULT/
 ├── wiki/
 │   ├── entities/           # People + businesses (compiled truth + timeline)
 │   ├── concepts/           # Mental models, frameworks, ideas
+│   ├── ideas/              # Parked ideas and thoughts (brain dump captures)
 │   ├── projects/           # Active project tracking
 │   ├── context/            # Living "what's true now" files (rewritten each run)
 │   ├── daily/              # Daily briefs + ingestion logs

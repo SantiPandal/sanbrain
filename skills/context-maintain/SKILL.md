@@ -38,6 +38,7 @@ Guarantees:
 VAULT_PATH="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT"
 CONTEXT_DIR="$VAULT_PATH/wiki/context"
 ENTITIES_DIR="$VAULT_PATH/wiki/entities"
+IDEAS_DIR="$VAULT_PATH/wiki/ideas"
 PROJECTS_DIR="$VAULT_PATH/wiki/projects"
 DAILY_DIR="$VAULT_PATH/wiki/daily"
 LOG_FILE="$VAULT_PATH/log.md"
@@ -98,6 +99,11 @@ state, active life threads. Keep this to 3-8 bullet points. Hard facts only.]
 - [thing in motion: waiting on X, deadline Y, next step Z]
 - [thing in motion]
 
+## Parked Ideas
+- [[wiki/ideas/idea-slug]] — [one-line summary]
+[List all ideas from wiki/ideas/ where domain matches this business and status is parked or exploring.
+If no ideas exist for this subject, omit this section.]
+
 ## Last 7 Days
 - YYYY-MM-DD: [summary of that day's relevant activity]
 - YYYY-MM-DD: [summary]
@@ -135,11 +141,13 @@ For each context file being rewritten, gather ALL relevant vault pages. Read the
    - Business name in the project title or compiled truth
    - Wikilinks between project and business entity pages
 
-3. **Daily notes**: Read the last 7 days of `wiki/daily/` entries. Extract any mentions of the business.
+3. **Ideas**: Read all `wiki/ideas/` pages where `domain` matches this business. These populate the `## Parked Ideas` section.
 
-4. **Log entries**: Read `log.md` for recent `[CONTEXT]` flags and other entries mentioning the business.
+4. **Daily notes**: Read the last 7 days of `wiki/daily/` entries. Extract any mentions of the business.
 
-5. **The existing context file**: Read the current version of the context file being rewritten. This helps preserve information that hasn't changed — but the skill should NOT blindly copy sections. Every claim must be re-verified against source pages.
+5. **Log entries**: Read `log.md` for recent `[CONTEXT]` flags and other entries mentioning the business.
+
+6. **The existing context file**: Read the current version of the context file being rewritten. This helps preserve information that hasn't changed — but the skill should NOT blindly copy sections. Every claim must be re-verified against source pages.
 
 #### For personal context file:
 
@@ -148,7 +156,8 @@ For each context file being rewritten, gather ALL relevant vault pages. Read the
 3. **Daily notes**: Last 7 days from `wiki/daily/`.
 4. **Personal entity pages**: Any entity pages about Santiago or his personal relationships (non-business).
 5. **Personal project pages**: Projects not tied to a specific business.
-6. **Log entries**: Recent `log.md` entries for personal items.
+6. **Personal ideas**: Read `wiki/ideas/` pages where `domain` is `personal` or `general`.
+7. **Log entries**: Recent `log.md` entries for personal items.
 
 ### Phase 2: Synthesize Current State
 
@@ -251,7 +260,7 @@ Runs after `ingest` or `claude-extract` when business-relevant content is detect
 
 ## Dependencies
 
-- Reads: `SOUL.md`, `CRITICAL_FACTS.md`, `wiki/entities/`, `wiki/projects/`, `wiki/daily/`, `log.md`, existing context files
+- Reads: `SOUL.md`, `CRITICAL_FACTS.md`, `wiki/entities/`, `wiki/ideas/`, `wiki/projects/`, `wiki/daily/`, `log.md`, existing context files
 - Writes: `wiki/context/`, `log.md`
 - Triggered by: `ingest` (when `[CONTEXT]` flagged), `claude-extract` (when `[CONTEXT]` flagged), manual trigger, daily cron
 - Triggers: nothing downstream (context-maintain is a terminal skill)

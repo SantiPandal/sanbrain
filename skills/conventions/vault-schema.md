@@ -6,7 +6,7 @@ Every page in the vault follows the **compiled truth + timeline** pattern.
 
 ```markdown
 ---
-type: [person|business|meeting|mirror|daily|concept]
+type: [person|business|meeting|mirror|daily|concept|idea]
 ---
 # Title
 
@@ -33,3 +33,4 @@ See `templates/` for the specific format of each type:
 - `meeting.md` — structured meeting summaries
 - `mirror.md` — book mirrors (author's ideas mapped to Santiago's life)
 - `daily.md` — daily compilation/digest
+- `idea.md` — parked ideas and thoughts (brain dump captures, retrievable by domain)
