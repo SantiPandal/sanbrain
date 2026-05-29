@@ -43,6 +43,7 @@ WIKI_DIR="$VAULT_PATH/wiki"
 DAILY_DIR="$VAULT_PATH/wiki/daily"
 ENTITIES_DIR="$VAULT_PATH/wiki/entities"
 CONCEPTS_DIR="$VAULT_PATH/wiki/concepts"
+IDEAS_DIR="$VAULT_PATH/wiki/ideas"
 PROJECTS_DIR="$VAULT_PATH/wiki/projects"
 CONTEXT_DIR="$VAULT_PATH/wiki/context"
 LOGS_DIR="$VAULT_PATH/wiki/logs"
@@ -77,6 +78,9 @@ Read this to understand the current state of the knowledge system.
 ### New Pages
 - [[wiki/entities/person-name]] -- [one-line: who and why created]
 - [[wiki/concepts/concept-name]] -- [one-line: what it captures]
+
+### New Ideas Captured
+- [[wiki/ideas/idea-slug]] -- [one-line summary, domain]
 
 ### Updated Pages
 - [[wiki/entities/person-name]] -- [what changed: new timeline entry, compiled truth rewrite, enrichment]
@@ -114,6 +118,15 @@ be genuine insights, not mechanical "X was mentioned in Y" observations.]
 ### Personal
 - [most important personal thread]
 
+## Idea Bank
+[Surface parked ideas when they connect to today's context — a recent decision,
+a new connection, or an active thread that an idea could solve. Do NOT list all
+parked ideas every day. Only surface an idea when there's a reason to recall it.]
+
+- [[wiki/ideas/idea-slug]] -- [why it's relevant today: connects to active thread X, related to yesterday's decision about Y]
+
+[If no ideas are relevant today, omit this section entirely.]
+
 ## Questions for Santiago
 [3-5 questions the brief is asking Santiago to answer. These prompt him to provide
 context that feeds back into the system via Phase 0.5. Each question should be
@@ -135,6 +148,7 @@ Edit this file directly in Obsidian:
 - Total pages: [N]
 - Entities: [N] people, [N] businesses
 - Concepts: [N]
+- Ideas: [N] parked, [N] exploring
 - Projects: [N]
 - Pages created since last brief: [N]
 - Pages updated since last brief: [N]
@@ -214,6 +228,23 @@ Rules for connections:
 - If no non-obvious connections exist today, write "No significant new connections today." Do not fabricate.
 - Maximum 5 connections per brief. If more exist, pick the most actionable.
 
+### Phase 3.5: Surface Relevant Ideas
+
+Read all `wiki/ideas/` pages with `status: parked` or `status: exploring`.
+
+For each idea, check if it connects to today's context:
+1. Does the idea's `domain` match a business with an active thread that the idea could address?
+2. Does the idea link to an entity or concept that appeared in overnight changes?
+3. Was the idea mentioned or related to a recent decision?
+4. Has the idea been parked for 30+ days without being surfaced? (Periodic reminder.)
+
+If any connections exist, include the idea in the brief's `## Idea Bank` section with a one-line explanation of WHY it's relevant today.
+
+Rules:
+- Maximum 3 ideas per brief. Pick the most relevant.
+- If no ideas connect to today's context, omit the section entirely.
+- Never nag about the same idea on consecutive days. Track which ideas were surfaced in the previous brief (from Phase 0.5) and skip them unless new context emerged.
+
 ### Phase 4: Compile Attention Items
 
 Aggregate all items requiring Santiago's review or decision:
@@ -261,15 +292,16 @@ Scan the vault for metrics:
 1. **Total pages**: count all `.md` files under `wiki/`.
 2. **Entities**: count files in `wiki/entities/`. Separate by `type: person` and `type: business` from frontmatter.
 3. **Concepts**: count files in `wiki/concepts/`.
-4. **Projects**: count files in `wiki/projects/`.
-5. **Created since last brief**: count from Phase 1 inventory.
-6. **Updated since last brief**: count from Phase 1 inventory.
-7. **Stale pages**: files in `wiki/` not modified in 30+ days. List top 5 by staleness.
-8. **Orphan pages**: pages with zero inbound wikilinks from other pages. To compute:
+4. **Ideas**: count files in `wiki/ideas/`. Separate by `status: parked` and `status: exploring` from frontmatter.
+5. **Projects**: count files in `wiki/projects/`.
+6. **Created since last brief**: count from Phase 1 inventory.
+7. **Updated since last brief**: count from Phase 1 inventory.
+8. **Stale pages**: files in `wiki/` not modified in 30+ days. List top 5 by staleness.
+9. **Orphan pages**: pages with zero inbound wikilinks from other pages. To compute:
    - Build a set of all wikilink targets across all vault pages.
    - Any page NOT in that set is an orphan.
    - Exclude `_CLAUDE.md`, `index.md`, `log.md`, `SOUL.md`, `CRITICAL_FACTS.md` (root-level files are not expected to have inbound links).
-9. **Context files**: count, plus date of the oldest `last_updated` across all context files.
+10. **Context files**: count, plus date of the oldest `last_updated` across all context files.
 
 ### Phase 7: Write the Brief
 
@@ -308,7 +340,7 @@ Daily at 7 AM + manual trigger via "morning brief" or "brief me".
 
 ## Dependencies
 
-- Reads: `log.md`, `SOUL.md`, `CRITICAL_FACTS.md`, `wiki/context/`, `wiki/entities/`, `wiki/concepts/`, `wiki/projects/`, `wiki/daily/` (previous briefs), `index.md`, all recently modified vault pages
+- Reads: `log.md`, `SOUL.md`, `CRITICAL_FACTS.md`, `wiki/context/`, `wiki/entities/`, `wiki/concepts/`, `wiki/ideas/`, `wiki/projects/`, `wiki/daily/` (previous briefs), `index.md`, all recently modified vault pages
 - Writes: `wiki/daily/YYYY-MM-DD-brief.md`, `log.md`
 - Triggered by: 7 AM cron, manual trigger
 - Triggers: nothing downstream (morning-brief is a terminal, read-heavy skill)

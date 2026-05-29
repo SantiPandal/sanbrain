@@ -57,7 +57,7 @@ CRITICAL_FACTS="$VAULT_PATH/CRITICAL_FACTS.md"
 
 1. Verify `raw/` exists. If empty, log "ingest: nothing to process" to `log.md` and exit.
 2. Ensure `raw/archive/` exists (create if missing).
-3. Ensure all target directories exist under `wiki/` (entities, concepts, projects, context, daily, logs, reviews). Create any that are missing.
+3. Ensure all target directories exist under `wiki/` (entities, concepts, ideas, projects, context, daily, logs, reviews). Create any that are missing.
 4. Read `SOUL.md` — needed for personal-lens elaboration in Phase 3.
 5. Read `CRITICAL_FACTS.md` — needed for contradiction detection.
 6. Read `index.md` — needed to check what pages already exist.
@@ -149,9 +149,23 @@ Process each file according to its type. Every handler produces a uniform extrac
 #### Phase 2f: Plain Note
 
 1. Read the full text.
-2. Detect if it's a thought, a to-do list, a decision log, a journal entry, or something else.
+2. Detect intent — classify as one of:
+   - **idea**: Something Santiago might build, try, or implement later. Could be a product feature, a business experiment, a personal project, a process change. The key signal: it's forward-looking and not yet committed to. Examples: "add ELO rankings to Pala," "try cold plunge routine," "what if Tax Free integrated with X." If `type: idea` appears in frontmatter, always classify as idea.
+   - **thought**: A reflection, observation, or journal entry — backward-looking or present-tense.
+   - **to-do list**: Explicit action items with owners or deadlines.
+   - **decision log**: A choice that was made, with reasoning.
+   - **other**: Anything that doesn't fit above.
 3. Extract any entities, concepts, or project references.
-4. If it contains a decision or insight, capture it.
+4. If classified as **idea**: extract the idea summary (2-4 sentences preserving Santiago's original intent), determine the domain (`pala-padel`, `tax-free`, `personal`, or `general`), and identify wikilink targets (entities, concepts, projects the idea connects to). Add to the extraction object:
+   ```
+   idea: {
+     title: string (short label for the idea),
+     summary: string (2-4 sentences — the idea as Santiago thought it),
+     domain: string (pala-padel|tax-free|personal|general),
+     links: [ { target: string (entity/concept/project slug), why: string } ]
+   }
+   ```
+5. If it contains a decision or insight, capture it.
 
 #### Phase 2g: Structured Data (JSON/JSONL)
 
@@ -267,7 +281,44 @@ For each project reference in the extraction:
    - YYYY-MM-DD: Project first referenced in [[source-page-title]]. (Source: [source_file])
    ```
 
-#### 3d: Daily -> wiki/daily/
+#### 3d: Ideas -> wiki/ideas/
+
+For each extraction where `idea` is present (from Phase 2f or any other handler that detects an idea):
+
+1. Generate slug from the idea title: lowercase, hyphens for spaces.
+2. Check if `wiki/ideas/[slug].md` exists.
+3. If exists: append a new timeline entry. If the new extraction adds context or refines the idea, update the Summary section.
+4. If does not exist: create:
+   ```markdown
+   ---
+   type: idea
+   status: parked
+   domain: [domain from extraction]
+   first_seen: YYYY-MM-DD
+   source: [source_file]
+   ---
+   ## For future Claude
+   [One-line: what this idea is about and which domain it belongs to]
+
+   # [Idea Title]
+
+   ## Summary
+   [2-4 sentences from extraction — preserve Santiago's original intent and nuance]
+
+   ## Links
+   - [[link-target]] — [why this connects]
+
+   ## Timeline
+   - YYYY-MM-DD: Captured from [[source-page-title]]. (Source: [source_file])
+   ```
+
+Ideas are NEVER promoted to projects automatically. Santiago decides when to act on an idea. The `status` field only changes via manual edit or morning brief feedback:
+- `parked` — default, sitting in the idea bank
+- `exploring` — Santiago is actively thinking about it
+- `decided` — committed, a project page should exist
+- `dropped` — decided against
+
+#### 3e: Daily -> wiki/daily/
 
 Append a summary of what was ingested to today's daily note at `wiki/daily/YYYY-MM-DD.md`. Create the daily note if it does not exist.
 
@@ -276,7 +327,7 @@ Add under `## Ingested Today`:
 - [HH:MM] Processed [filename] ([type]): [one-line summary]. Entities: [[entity1]], [[entity2]]. Key insight: [key_insight].
 ```
 
-#### 3e: Context Files -> wiki/context/
+#### 3f: Context Files -> wiki/context/
 
 If any extraction contains business-relevant information (references a known business entity, contains decisions tagged to a business, or updates project state), flag the relevant context file for update:
 
@@ -324,6 +375,7 @@ For each new page created in this run, add an entry under the appropriate sectio
 ```
 - [[wiki/entities/person-name]] — [one-line description]
 - [[wiki/concepts/concept-name]] — [one-line description]
+- [[wiki/ideas/idea-name]] — [one-line description]
 - [[wiki/projects/project-name]] — [one-line description]
 ```
 
@@ -383,6 +435,6 @@ Nightly at 10 PM + manual trigger via "ingest" or "process raw".
 ## Dependencies
 
 - Reads: `SOUL.md`, `CRITICAL_FACTS.md`, `index.md`, all `wiki/` pages (for dedup and contradiction detection)
-- Writes: `wiki/entities/`, `wiki/concepts/`, `wiki/projects/`, `wiki/daily/`, `log.md`, `index.md`
+- Writes: `wiki/entities/`, `wiki/concepts/`, `wiki/ideas/`, `wiki/projects/`, `wiki/daily/`, `log.md`, `index.md`
 - Moves: `raw/*` -> `raw/archive/*`
 - Triggers: `entity-update` (post-processing), `context-maintain` (when business-relevant content detected)
