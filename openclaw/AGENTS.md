@@ -68,15 +68,20 @@ Never answer from a narrow slice when the full picture is available.
 
 ### Communication & Handoffs
 
-**Primary channel: Telegram group "San" (all four claws are members).**
+**Primary channel: Telegram group "San" (chat ID: `-1003637114912`).**
+
+All four claws are members. To send a message to the group:
+```
+message_send --channel telegram --target -1003637114912 --message "your message here"
+```
 
 When you need context or input from another claw:
-1. Post in the Telegram group, @mentioning the target agent by name.
+1. Send a message to the group (chat ID `-1003637114912`), @mentioning the target agent.
 2. State what you need clearly — context, a verdict, a vault lookup, etc.
 3. Wait for their response in the group.
 4. Synthesize and continue your work.
 
-Example: "Hey @judge, I found conflicting dates for the Pala partnership agreement in the vault. Can you weigh in on which version is authoritative?"
+Example: `message_send --channel telegram --target -1003637114912 --message "Hey @judge, conflicting dates on the Pala partnership. Which version is authoritative?"`
 
 **Fallback:** If sessions_spawn is available for the target agent in your current session, you can use it. But the Telegram group is preferred — it creates a shared record all claws can see.
 
