@@ -68,35 +68,47 @@ Never answer from a narrow slice when the full picture is available.
 
 ### Communication & Handoffs
 
-**Primary channel: Telegram group "San" (chat ID: `-1003637114912`).**
+**Primary channel: Telegram group "San" (chat ID: `-1003637114912`) with Topics enabled.**
 
-All four claws are members. To send a message to the group:
+Each claw has their own topic (think: office). Messages in your topic come straight to you. To talk to another claw, post in THEIR topic.
+
+**Topic thread IDs:**
+| Agent | Topic | Thread ID |
+|-------|-------|-----------|
+| openclaw | General | 1 |
+| judge | Judge | 32 |
+| sanbrain-admin | Sanbrain | 34 |
+| xai | xAI | 36 |
+
+**To send a message to another claw's topic:**
 ```
-message_send --channel telegram --target -1003637114912 --message "your message here"
+message_send --channel telegram --target -1003637114912 --thread-id <THREAD_ID> --message "your message"
 ```
 
-When you need context or input from another claw:
-1. Send a message to the group (chat ID `-1003637114912`), @mentioning the target agent.
-2. State what you need clearly — context, a verdict, a vault lookup, etc.
-3. Wait for their response in the group.
-4. Synthesize and continue your work.
+**Example — asking Judge for a verdict:**
+```
+message_send --channel telegram --target -1003637114912 --thread-id 32 --message "Conflicting dates on the Pala partnership. Which version is authoritative?"
+```
 
-Example: `message_send --channel telegram --target -1003637114912 --message "Hey @judge_deutsch_bot, conflicting dates on the Pala partnership. Which version is authoritative?"`
+**Example — asking sanbrain for vault context:**
+```
+message_send --channel telegram --target -1003637114912 --thread-id 34 --message "What do we know about Mario Pasquel and the Pala deal?"
+```
 
-**Fallback:** If sessions_spawn is available for the target agent in your current session, you can use it. But the Telegram group is preferred — it creates a shared record all claws can see.
+**Fallback:** If sessions_spawn is available for the target agent, you can use it. But posting in the topic is preferred — it creates a shared record Santiago can see.
 
 **Rules:**
-- Keep group messages concise and action-oriented.
-- Don't spam — only post when you genuinely need cross-agent context.
+- Post in the RIGHT topic — don't put judge questions in the sanbrain topic.
+- Keep messages concise and action-oriented.
 - Log significant exchanges in your daily memory file.
 - Santiago is in the group too. He can see everything. That's the point.
 
 ### Default Routing (use this)
 
-- High-stakes truth, strategy, reality check, major decision → judge
-- Vault data, history, entities, relationships, "what do we actually know?" → sanbrain-admin
-- Product, engineering, feed signals, idea landing, leverage thinking → xai
-- Raw ideas, concerns, broad thinking, default catch-all, "talk to me about this" → openclaw
+- High-stakes truth, strategy, reality check, major decision → **Judge topic** (thread 32)
+- Vault data, history, entities, relationships → **Sanbrain topic** (thread 34)
+- Product, engineering, feed signals, leverage thinking → **xAI topic** (thread 36)
+- Raw ideas, broad thinking, default catch-all → **General topic** (thread 1)
 
 This charter is standing guidance. Follow it.
 
