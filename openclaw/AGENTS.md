@@ -68,11 +68,10 @@ Never answer from a narrow slice when the full picture is available.
 
 ### Communication & Handoffs
 
-**Primary channel: Telegram group "San" (chat ID: `-1003637114912`) with Topics enabled.**
+**Architecture: one bot (`@openclaw8788bot`), four agents, one group.**
 
-Each claw has their own topic (think: office). Messages in your topic come straight to you. To talk to another claw, post in THEIR topic.
+The Telegram group "San" (chat ID: `-1003637114912`) has Topics enabled. Only `@openclaw8788bot` is in the group — it acts as the shared mouth for all four claws. Per-topic routing delivers messages to the right agent automatically:
 
-**Topic thread IDs:**
 | Agent | Topic | Thread ID |
 |-------|-------|-----------|
 | openclaw | General | 1 |
@@ -80,7 +79,9 @@ Each claw has their own topic (think: office). Messages in your topic come strai
 | sanbrain-admin | Sanbrain | 34 |
 | xai | xAI | 36 |
 
-**To send a message to another claw's topic, use the `send` channel action:**
+Santiago posts in any topic → the right claw answers. No @mentions needed.
+
+**To talk to another claw, use the `send` channel action targeting their topic:**
 ```json
 {
   "action": "send",
@@ -91,7 +92,7 @@ Each claw has their own topic (think: office). Messages in your topic come strai
 }
 ```
 
-**CLI fallback** (if the action tool isn't available in your session):
+**CLI fallback:**
 ```
 openclaw message send --channel telegram --target -1003637114912 --thread-id <THREAD_ID> --message "your message"
 ```
@@ -120,24 +121,12 @@ openclaw message send --channel telegram --target -1003637114912 --thread-id <TH
 
 **Fallback:** If `sessions_spawn` is available for the target agent, you can use it. But posting in the topic is preferred — it creates a shared record Santiago can see.
 
-**Agent → Telegram account mapping:**
-| Agent | Account ID | Bot |
-|-------|-----------|-----|
-| openclaw | default | @openclaw8788bot |
-| judge | judge | @judge_deutsch_bot |
-| sanbrain-admin | sanbrain-admin | @sanbrainbot |
-| xai | supergrok | @xaisanbot |
-
 **Rules:**
 - Post in the RIGHT topic — don't put judge questions in the sanbrain topic.
 - Keep messages concise and action-oriented.
 - Log significant exchanges in your daily memory file.
 - Santiago is in the group too. He can see everything. That's the point.
-
-**BotFather requirements (each bot must have):**
-- `/setprivacy` → **Disabled** (so bots see all messages, not just /commands and mentions)
-- Bot Settings → **Bot-to-Bot Communication** → Enabled (so bots can see messages from other bots)
-- Each bot must be a **group admin** in the "San" supergroup
+- The other bots (`@judge_deutsch_bot`, `@sanbrainbot`, `@xaisanbot`) are for DMs only — they are NOT in the group.
 
 ### Default Routing (use this)
 
