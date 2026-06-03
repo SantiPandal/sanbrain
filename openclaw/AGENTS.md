@@ -81,43 +81,25 @@ The Telegram group "San" (chat ID: `-1003637114912`) has Topics enabled. Only `@
 
 Santiago posts in any topic → the right claw answers. No @mentions needed.
 
-**To talk to another claw, use the `send` channel action targeting their topic:**
+**To REPLY when addressed in your topic: just write your answer as normal text.** Your reply is automatically delivered to the topic you were addressed in. Do NOT specify a chat id, channel, or thread when replying — leave them out entirely. Just respond.
+
+**To PROACTIVELY message another claw's topic**, use the `message` tool with EXACTLY these field names — `channel`, `to`, `threadId`, `message`:
 ```json
 {
   "action": "send",
   "channel": "telegram",
   "to": "-1003637114912",
-  "messageThreadId": <THREAD_ID>,
+  "threadId": "32",
   "message": "your message"
 }
 ```
 
-**CLI fallback:**
-```
-openclaw message send --channel telegram --target -1003637114912 --thread-id <THREAD_ID> --message "your message"
-```
+⚠️ Use exactly `channel`, `to`, `threadId`, `message`. Do NOT invent `chatId`, `channelId`, or `threadName` — wrong field names make the message go to the wrong chat and fail.
 
-**Example — asking Judge for a verdict:**
-```json
-{
-  "action": "send",
-  "channel": "telegram",
-  "to": "-1003637114912",
-  "messageThreadId": 32,
-  "message": "Conflicting dates on the Pala partnership. Which version is authoritative?"
-}
-```
-
-**Example — asking sanbrain for vault context:**
-```json
-{
-  "action": "send",
-  "channel": "telegram",
-  "to": "-1003637114912",
-  "messageThreadId": 34,
-  "message": "What do we know about Mario Pasquel and the Pala deal?"
-}
-```
+- Ask **Judge** for a verdict → `"threadId": "32"`
+- Ask **sanbrain** for vault context → `"threadId": "34"`
+- Ask **xai** for feed/product thinking → `"threadId": "36"`
+- Post to **General** → `"threadId": "1"`
 
 **Fallback:** If `sessions_spawn` is available for the target agent, you can use it. But posting in the topic is preferred — it creates a shared record Santiago can see.
 
