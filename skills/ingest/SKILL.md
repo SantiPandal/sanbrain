@@ -113,9 +113,15 @@ Process each file according to its type. Every handler produces a uniform extrac
 #### Phase 2a: PDF
 
 1. Extract text from the PDF (use available PDF extraction tools or `pdftotext`).
-2. Summarize: what is this document about?
-3. Extract entities, concepts, decisions.
-4. Generate personal elaboration: read `SOUL.md` and map the document's key ideas to Santiago's businesses, frameworks, or growth edges.
+2. **Book detection**: Check if the PDF title or filename matches an existing book entity in `wiki/entities/` (type: book). If matched:
+   a. Copy the PDF to `books-pdf/[book-slug].pdf` in the vault.
+   b. Update the book entity's `## PDF` section with the path.
+   c. Extract key frameworks and update the book entity's `## Key Frameworks` section.
+   d. Extract concepts and create/update `wiki/concepts/` pages with back-links to the book entity.
+   e. Skip the generic extraction below — the book entity page is the target, not a new page.
+3. If not a book: Summarize: what is this document about?
+4. Extract entities, concepts, decisions.
+5. Generate personal elaboration: read `SOUL.md` and map the document's key ideas to Santiago's businesses, frameworks, or growth edges.
 
 #### Phase 2b: Audio Transcript
 

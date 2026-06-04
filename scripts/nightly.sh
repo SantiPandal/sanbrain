@@ -45,6 +45,14 @@ timeout 300 "$SANBRAIN/scripts/harvest-downloads.sh" >> "$LOG" 2>&1
 timeout 300 "$SANBRAIN/scripts/harvest-github.sh" >> "$LOG" 2>&1
 [ $? -eq 124 ] && echo "$(ts) WARN: harvest-github timed out (5m)" >> "$LOG"
 
+# ── Phase 1b: Harvest Voice Recordings ───────────────────────────
+timeout 600 "$SANBRAIN/scripts/harvest-recordings.sh" >> "$LOG" 2>&1
+[ $? -eq 124 ] && echo "$(ts) WARN: harvest-recordings timed out (10m)" >> "$LOG"
+
+# ── Phase 1c: Harvest OpenClaw Summaries ─────────────────────────
+timeout 300 "$SANBRAIN/scripts/harvest-openclaw.sh" >> "$LOG" 2>&1
+[ $? -eq 124 ] && echo "$(ts) WARN: harvest-openclaw timed out (5m)" >> "$LOG"
+
 # ── Phase 2: Process approved deletions from brief ───────────────
 DOWNLOADS="$HOME/Downloads"
 LATEST_BRIEF=$(ls "$VAULT/wiki/daily/"*-brief.md 2>/dev/null | sort | tail -1)
