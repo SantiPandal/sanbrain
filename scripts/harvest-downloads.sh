@@ -1,13 +1,17 @@
 #!/opt/homebrew/bin/bash
 # Sanbrain: harvest-downloads
-# Treats ~/Downloads as a sensor. Classifies every file, extracts knowledge,
-# flags one-way-door files for Santiago's approval before deletion.
+# Treats ~/Downloads as a desk — things accumulate, get processed nightly,
+# and stay until Santiago explicitly clears them via the morning brief.
 #
 # Classification:
-#   SACRED  — fiscal certs, keys → never touch
-#   JUNK    — installers, temp → auto-delete now
-#   HARVEST — text files → copy to raw/, auto-delete
-#   ONE-WAY — unique docs, photos, audio → log in manifest, ask before deleting
+#   SACRED  — fiscal certs, keys → never touch, never list
+#   NOISE   — .DS_Store, .localized, .part, .crdownload → auto-delete (invisible junk)
+#   HARVEST — text files (.md, .txt) → copy to raw/ for ingest, keep original
+#   DESK    — everything else → log in manifest for the brief, keep until approved
+#
+# Philosophy: Downloads is a desk, not a trashcan. Nothing meaningful gets
+# auto-deleted. The nightly run extracts knowledge; the morning brief shows
+# what's on the desk; Santiago checks items off to clear them.
 #
 # Called by nightly.sh before the 4-skill chain.
 
@@ -20,8 +24,8 @@ MANIFEST="$VAULT/raw/downloads-manifest-${TODAY}.md"
 LOG="$SANBRAIN/logs/downloads.log"
 
 HARVESTED=()
-ONE_WAY_DOORS=()
-DELETED=()
+DESK_ITEMS=()
+CLEANED=()
 
 log() { echo "$(date +%Y-%m-%dT%H:%M:%S) $1" >> "$LOG"; }
 
@@ -48,28 +52,14 @@ is_sacred() {
   return 1
 }
 
-is_junk() {
+is_noise() {
   local f="$1"
   local base=$(basename "$f")
-  # Installers and temp files
-  [[ "$base" == *.dmg ]] && return 0
-  [[ "$base" == *.pkg ]] && return 0
-  [[ "$base" == *.part ]] && return 0
-  [[ "$base" == *.crdownload ]] && return 0
-  # AI-generated images (ephemeral, re-generable)
-  [[ "$base" == Gemini_Generated_Image* ]] && return 0
-  [[ "$base" == DALL* ]] && return 0
-  # macOS junk
+  # Only truly invisible system junk — auto-clean silently
   [[ "$base" == .DS_Store ]] && return 0
   [[ "$base" == .localized ]] && return 0
-  return 1
-}
-
-is_junk_dir() {
-  local d="$1"
-  local base=$(basename "$d")
-  # Telegram cache (re-downloads from cloud)
-  [[ "$base" == "Telegram Desktop" ]] && return 0
+  [[ "$base" == *.part ]] && return 0
+  [[ "$base" == *.crdownload ]] && return 0
   return 1
 }
 
@@ -123,37 +113,40 @@ log "=== Downloads harvest started ==="
 while IFS= read -r -d '' f; do
   base=$(basename "$f")
 
-  # Skip hidden files
-  [[ "$base" == .* ]] && continue
+  # Skip hidden files (except noise check below)
+  [[ "$base" == .* ]] && {
+    # Silently clean invisible noise
+    is_noise "$f" && rm -f "$f" 2>/dev/null && CLEANED+=("$base")
+    continue
+  }
 
-  # ── SACRED: never touch
+  # ── SACRED: never touch, never list
   if is_sacred "$f"; then
     log "SACRED: $base"
     continue
   fi
 
-  # ── JUNK: auto-delete
-  if is_junk "$f"; then
-    rm -f "$f" 2>/dev/null && DELETED+=("$base") && log "JUNK deleted: $base"
+  # ── NOISE: auto-clean (broken downloads, etc.)
+  if is_noise "$f"; then
+    rm -f "$f" 2>/dev/null && CLEANED+=("$base") && log "NOISE cleaned: $base"
     continue
   fi
 
-  # ── HARVESTABLE: copy to raw/, queue for deletion
+  # ── HARVESTABLE: copy to raw/ for ingest, keep original on desk
   if is_harvestable "$f"; then
     cp "$f" "$VAULT/raw/$base" 2>/dev/null
-    HARVESTED+=("$f")
-    log "HARVESTED: $base → raw/"
-    continue
+    HARVESTED+=("$base")
+    log "HARVESTED: $base → raw/ (original stays on desk)"
   fi
 
-  # ── ONE-WAY DOOR: everything else — log in manifest, keep until approved
+  # ── DESK: log everything (including harvested) in manifest for the brief
   local_size=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null)
   local_date=$(stat -f "%Sm" -t "%Y-%m-%d" "$f" 2>/dev/null || stat -c "%y" "$f" 2>/dev/null | cut -d' ' -f1)
   category=$(get_file_category "$f")
   h_size=$(human_size "${local_size:-0}")
 
-  ONE_WAY_DOORS+=("$category|$base|$h_size|$local_date")
-  log "ONE-WAY: $base ($category, $h_size)"
+  DESK_ITEMS+=("$category|$base|$h_size|$local_date")
+  log "DESK: $base ($category, $h_size)"
 
 done < <(find "$DOWNLOADS" -maxdepth 1 -type f -print0 2>/dev/null)
 
@@ -161,25 +154,15 @@ done < <(find "$DOWNLOADS" -maxdepth 1 -type f -print0 2>/dev/null)
 while IFS= read -r -d '' d; do
   dir_base=$(basename "$d")
   [[ "$dir_base" == .* ]] && continue
-  # Junk directories
-  if is_junk_dir "$d"; then
-    rm -rf "$d" 2>/dev/null && DELETED+=("$dir_base/") && log "JUNK dir deleted: $dir_base/"
-    continue
-  fi
   dir_size=$(timeout 30 du -sh "$d" 2>/dev/null | cut -f1)
   [ -z "$dir_size" ] && dir_size="??"
   file_count=$(timeout 30 find "$d" -type f 2>/dev/null | wc -l | tr -d ' ')
-  ONE_WAY_DOORS+=("folder|$dir_base/|$dir_size (${file_count} files)|$(stat -f "%Sm" -t "%Y-%m-%d" "$d" 2>/dev/null)")
-  log "ONE-WAY folder: $dir_base/ ($dir_size, $file_count files)"
+  DESK_ITEMS+=("folder|$dir_base/|$dir_size (${file_count} files)|$(stat -f "%Sm" -t "%Y-%m-%d" "$d" 2>/dev/null)")
+  log "DESK folder: $dir_base/ ($dir_size, $file_count files)"
 done < <(find "$DOWNLOADS" -maxdepth 1 -type d -not -path "$DOWNLOADS" -print0 2>/dev/null)
 
-# ── Delete harvested text files ──────────────────────────────────
-for f in "${HARVESTED[@]}"; do
-  [ -f "$f" ] && rm "$f" && log "Cleaned harvested: $(basename "$f")"
-done
-
 # ── Write manifest for the morning brief ─────────────────────────
-if [ ${#ONE_WAY_DOORS[@]} -gt 0 ] || [ ${#HARVESTED[@]} -gt 0 ] || [ ${#DELETED[@]} -gt 0 ]; then
+if [ ${#DESK_ITEMS[@]} -gt 0 ] || [ ${#HARVESTED[@]} -gt 0 ]; then
   {
     echo "---"
     echo "type: downloads-manifest"
@@ -188,35 +171,26 @@ if [ ${#ONE_WAY_DOORS[@]} -gt 0 ] || [ ${#HARVESTED[@]} -gt 0 ] || [ ${#DELETED[
     echo "auto_process: true"
     echo "---"
     echo ""
-    echo "# Downloads Harvest — $TODAY"
+    echo "# Your Desk — $TODAY"
+    echo ""
+    echo "What's sitting in Downloads right now. Check items to clear them."
     echo ""
 
-    if [ ${#DELETED[@]} -gt 0 ]; then
-      echo "## Auto-Deleted (junk)"
-      for item in "${DELETED[@]}"; do
-        echo "- $item"
-      done
-      echo ""
-    fi
-
     if [ ${#HARVESTED[@]} -gt 0 ]; then
-      echo "## Harvested to raw/ (auto-deleted)"
+      echo "## Harvested (content copied to vault)"
       for f in "${HARVESTED[@]}"; do
-        echo "- $(basename "$f")"
+        echo "- $f *(safe to clear — content is in the vault)*"
       done
       echo ""
     fi
 
-    if [ ${#ONE_WAY_DOORS[@]} -gt 0 ]; then
-      echo "## One-Way Doors (pending approval)"
-      echo ""
-      echo "These files contain potentially unique data. They stay in Downloads"
-      echo "until Santiago confirms they can be deleted. Check items to approve deletion."
+    if [ ${#DESK_ITEMS[@]} -gt 0 ]; then
+      echo "## On Your Desk"
       echo ""
 
       # Group by category
       declare -A CATEGORIES
-      for entry in "${ONE_WAY_DOORS[@]}"; do
+      for entry in "${DESK_ITEMS[@]}"; do
         IFS='|' read -r cat name size date <<< "$entry"
         CATEGORIES["$cat"]+="- [ ] **$name** ($size, $date)\n"
       done
@@ -233,5 +207,5 @@ if [ ${#ONE_WAY_DOORS[@]} -gt 0 ] || [ ${#HARVESTED[@]} -gt 0 ] || [ ${#DELETED[
 fi
 
 # ── Summary ──────────────────────────────────────────────────────
-echo "Downloads harvest: ${#DELETED[@]} junk deleted, ${#HARVESTED[@]} harvested, ${#ONE_WAY_DOORS[@]} one-way doors flagged"
-log "=== Complete: ${#DELETED[@]} deleted, ${#HARVESTED[@]} harvested, ${#ONE_WAY_DOORS[@]} flagged ==="
+echo "Downloads harvest: ${#HARVESTED[@]} harvested, ${#DESK_ITEMS[@]} items on desk, ${#CLEANED[@]} noise cleaned"
+log "=== Complete: ${#HARVESTED[@]} harvested, ${#DESK_ITEMS[@]} on desk, ${#CLEANED[@]} noise ==="

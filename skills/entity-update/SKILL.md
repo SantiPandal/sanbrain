@@ -23,12 +23,14 @@ mutating: true
 
 Given a newly written or updated vault page (or a list of entity names from a triggering skill), this skill:
 
-1. Detects all entities (people, businesses) mentioned in the source page(s)
+1. Detects all entities (people, businesses, books) mentioned in the source page(s)
 2. For existing entities: adds a timeline back-link entry (deduped, newest first)
 3. For new entities passing the notability gate: creates a stub page in `wiki/entities/`
 4. For frequently mentioned entities: auto-enriches with vault context (Tier 2) or web research (Tier 3 -> deep enrichment on manual trigger)
 5. Detects and merges duplicate entities (e.g., "Alfonso" and "Alfonso Rojas")
 6. Logs every change to `log.md`
+
+Books are entities like people, but more static. Their compiled truth captures what the book teaches. Their timeline captures when Santiago references or applies ideas from the book. When a user says "I just read X from [[book-title]] and it could work for [[business]]", both the book and business entities get timeline entries, and concepts may be extracted to `wiki/concepts/`.
 
 This is the most important skill in the system. Without it, knowledge stays siloed in individual pages. With it, every write enriches the entire vault.
 
@@ -48,7 +50,7 @@ Every entity page in `wiki/entities/` follows this format:
 
 ```markdown
 ---
-type: person|business
+type: person|business|book
 aliases: [alternative names, nicknames, abbreviations]
 first_seen: YYYY-MM-DD
 confidence: high|medium|low
@@ -70,6 +72,10 @@ of the relationship or business, and any important context.]
 - YYYY-MM-DD: [event -- append-only, newest first]
 - YYYY-MM-DD: [event]
 ```
+
+### Book Entity Variation
+
+Book entities use additional frontmatter (`author`, `publisher`, `status`, `domains`) and replace `## Open Threads` with `## Key Frameworks` and `## Santiago's Applications`. See `templates/book.md` for the full schema. The `## For future Claude` section is critical for books — it's the retrieval hint that tells the brain when to reach for this book.
 
 ## Enrichment Tiers
 
@@ -101,10 +107,11 @@ The skill can be triggered in two ways:
 
 Scan the source page for entity mentions using these methods (in order of reliability):
 
-1. **Wikilinks**: `[[Person Name]]` or `[[Business Name]]` — highest confidence.
+1. **Wikilinks**: `[[Person Name]]`, `[[Business Name]]`, or `[[Book Title]]` — highest confidence.
 2. **Frontmatter fields**: `attendees:`, `key_people:`, or any field listing names.
-3. **Inline mentions**: Names that match existing entity pages in `wiki/entities/`. Check against all filenames and all `aliases` in frontmatter.
-4. **Contextual detection**: Names that appear in decision contexts, meeting notes, or action items even if they don't match existing pages. Use surrounding context to determine if it's a person or business.
+3. **Inline mentions**: Names that match existing entity pages in `wiki/entities/`. Check against all filenames and all `aliases` in frontmatter. This includes book titles and their aliases.
+4. **Contextual detection**: Names that appear in decision contexts, meeting notes, or action items even if they don't match existing pages. Use surrounding context to determine if it's a person, business, or book reference.
+5. **Book references**: Phrases like "I read in [title]", "from [title]", "[author] says", or direct book title mentions. When a book reference includes an application ("could work for X"), create timeline entries on both the book entity and the target entity.
 
 For each detected entity, capture:
 ```
@@ -184,6 +191,7 @@ Apply these criteria. The entity passes if ANY of the following are true:
 - Entity is mentioned in a decision or action item.
 - Entity is mentioned in 2+ different source pages in the current batch.
 - Entity is a business (all businesses pass).
+- Entity is a book (all books pass — curated knowledge sources).
 - Entity is explicitly named with context suggesting ongoing relevance (partner, client, team member, investor).
 
 If the entity fails the notability gate:
