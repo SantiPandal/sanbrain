@@ -68,54 +68,28 @@ Never answer from a narrow slice when the full picture is available.
 
 ### Communication & Handoffs
 
-**Architecture: one bot (`@openclaw8788bot`), four agents, one group.**
+**Consult your peers directly — no group chat needed.**
 
-The Telegram group "San" (chat ID: `-1003637114912`) has Topics enabled. Only `@openclaw8788bot` is in the group — it acts as the shared mouth for all four claws. Per-topic routing delivers messages to the right agent automatically:
+When another claw has context that would sharpen your answer, ask them directly before you respond. Use the `sessions_spawn` tool with the peer's `agentId` and a specific task, then `sessions_yield` to receive their answer, then fold it into your reply.
 
-| Agent | Topic | Thread ID |
-|-------|-------|-----------|
-| openclaw | General | 1 |
-| judge | Judge | 32 |
-| sanbrain-admin | Sanbrain | 34 |
-| xai | xAI | 36 |
+Agent IDs: `openclaw`, `judge`, `sanbrain-admin`, `xai`.
 
-Santiago posts in any topic → the right claw answers. No @mentions needed.
+**How to consult (example — Judge needs vault context):**
+1. `sessions_spawn` → `agentId: "sanbrain-admin"`, `task: "What do we know about Mario Pasquel and the Pala deal? Summarize from the vault."`
+2. `sessions_yield` → receive sanbrain-admin's answer
+3. Use that answer in your verdict.
 
-**To REPLY when addressed in your topic: just write your answer as normal text.** Your reply is automatically delivered to the topic you were addressed in. Do NOT specify a chat id, channel, or thread when replying — leave them out entirely. Just respond.
-
-**To PROACTIVELY message another claw's topic**, use the `message` tool with EXACTLY these field names — `channel`, `to`, `threadId`, `message`:
-```json
-{
-  "action": "send",
-  "channel": "telegram",
-  "to": "-1003637114912",
-  "threadId": "32",
-  "message": "your message"
-}
-```
-
-⚠️ Use exactly `channel`, `to`, `threadId`, `message`. Do NOT invent `chatId`, `channelId`, or `threadName` — wrong field names make the message go to the wrong chat and fail.
-
-- Ask **Judge** for a verdict → `"threadId": "32"`
-- Ask **sanbrain** for vault context → `"threadId": "34"`
-- Ask **xai** for feed/product thinking → `"threadId": "36"`
-- Post to **General** → `"threadId": "1"`
-
-**Fallback:** If `sessions_spawn` is available for the target agent, you can use it. But posting in the topic is preferred — it creates a shared record Santiago can see.
+**Who to consult for what:**
+- Vault data, entity history, decisions, relationships → `sanbrain-admin`
+- High-stakes truth, reality check, Deutsch test, verdicts → `judge`
+- Product, engineering, feed signals, leverage thinking → `xai`
+- Broad/whole-board thinking, connecting dots, loose signals → `openclaw`
 
 **Rules:**
-- Post in the RIGHT topic — don't put judge questions in the sanbrain topic.
-- Keep messages concise and action-oriented.
-- Log significant exchanges in your daily memory file.
-- Santiago is in the group too. He can see everything. That's the point.
-- The other bots (`@judge_deutsch_bot`, `@sanbrainbot`, `@xaisanbot`) are for DMs only — they are NOT in the group.
-
-### Default Routing (use this)
-
-- High-stakes truth, strategy, reality check, major decision → **Judge topic** (thread 32)
-- Vault data, history, entities, relationships → **Sanbrain topic** (thread 34)
-- Product, engineering, feed signals, leverage thinking → **xAI topic** (thread 36)
-- Raw ideas, broad thinking, default catch-all → **General topic** (thread 1)
+- Ask a specific, self-contained question — the peer doesn't see your conversation.
+- Consult when it genuinely improves the answer; don't over-consult trivia.
+- You're talking to Santiago directly (DM or wherever he reached you). Just reply with plain text — delivery is automatic, no chat/thread IDs needed.
+- Log significant cross-claw exchanges in your daily memory file.
 
 This charter is standing guidance. Follow it.
 
