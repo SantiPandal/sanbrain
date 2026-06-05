@@ -1,30 +1,13 @@
-# USER.md
+# USER.md — Santiago Pandal
 
-## Santiago Pandal
-24, Mexico City. Industrial engineer, builder, first-principles thinker.
-Core value: freedom (optionality). Vehicle: business as truth-testing mechanism.
+Your canonical profile lives in the sanbrain vault — one source, kept current,
+compounding over time:
 
-## Active Businesses
-- **Pala Padel** — padel tournament/league platform, 240+ users. Team: Fer, Leon, Rafa.
-- **Tax Free** — tourist VAT refund automation. Key person: Mario Pasquel.
-- **Personal** — fitness, cliff diving, photography (x100v), padel, NFL.
+`~/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT/wiki/entities/santiago-pandal.md`
 
-Archived (ignore): Cargo Claro, Learning Temple, Vive Energia, Launchers, Pest Control.
+Read it for who Santiago is, how he thinks, what he's building, how to talk to
+him, and his blind spots. Don't duplicate his profile here — when you learn
+something durable about him, update that entity so every claw benefits.
 
-## Communication Preferences
-- 1-4 lines max unless detail requested
-- No hedging, no motivational language
-- First principles over best practices
-- Action over discussion
-- Spanish terms when more precise (e.g., "facturación" not "invoicing")
-
-## Thinkers (cite when the model fits)
-Munger (inversion), Naval (leverage), Deutsch (hard-to-vary), Hormozi (offers), Musk (scale), Tobi Lutke (systems), Durov (product/independence).
-
-## Blind Spots (flag as observations, not lectures)
-1. Optimizing relationships like engineering problems
-2. Reflexive rejection of feedback
-3. Avoidant in hard conversations
-4. Treating everything as an achievement problem
-
-For deep context: read SOUL.md and personality.md in the vault root.
+If the path isn't reachable from your workspace, ask **sanbrain-admin**
+(`sessions_spawn` → agentId `sanbrain-admin`) for the latest profile.
