@@ -3,48 +3,46 @@
 # Transcribes iPhone voice memos from iCloud Meetings/ folder using OpenAI
 # Whisper API, then delivers frontmattered markdown to raw/ for nightly ingest.
 #
-# Flow:
-#   1. Scan Meetings/ for .m4a files not yet transcribed
-#   2. Transcribe via Whisper API → ~/transcripts/
-#   3. Copy Apple summary .txt files to ~/transcripts/
-#   4. Deliver today's new transcripts to $VAULT/raw/ with frontmatter
+# Capture-fidelity rules (no silent drops, no compression at capture):
+#   - Files >25MB are CHUNKED with ffmpeg and transcribed per-chunk
+#     (previously skipped silently — the longest meetings were the ones lost).
+#   - Delivery is tracked in a state file, not by checking raw/ (which broke
+#     once ingest archived the file — transcripts re-delivered forever).
+#   - No date window: anything transcribed and never delivered gets delivered,
+#     even if the Mac was off for a week.
+#   - Apple's AI summary .txt files are delivered with `fidelity: apple-summary`
+#     so downstream skills treat the framing as unverified. Verbatim Whisper
+#     transcripts are the primary record.
 #
 # Called by nightly.sh before the 4-skill chain.
 
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
-SANBRAIN="$HOME/sanbrain"
-VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT"
+source "$(dirname "$0")/lib.sh"
 MEETINGS="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Meetings"
 TRANSCRIPTS="$HOME/transcripts"
 TODAY=$(date +%Y-%m-%d)
-YESTERDAY=$(date -v-1d +%Y-%m-%d 2>/dev/null || date -d "yesterday" +%Y-%m-%d)
 LOG="$SANBRAIN/logs/recordings.log"
 MAX_SIZE=$((25 * 1024 * 1024))  # 25MB Whisper API limit
+DELIVERED_LIST="$STATE_DIR/delivered-recordings.list"
 
 TRANSCRIBED=0
 DELIVERED=0
-SKIPPED=0
-
-log() { echo "$(date +%Y-%m-%dT%H:%M:%S) $1" >> "$LOG"; }
+FAILED=0
 
 # ── Pre-flight ──────────────────────────────────────────────────
 mkdir -p "$TRANSCRIPTS"
-mkdir -p "$SANBRAIN/logs"
+touch "$DELIVERED_LIST"
 
 if [ -z "$OPENAI_API_KEY" ]; then
-  # Try sourcing from .zshrc
-  source "$HOME/.zshrc" 2>/dev/null
-fi
-
-if [ -z "$OPENAI_API_KEY" ]; then
-  log "=== Recordings harvest SKIPPED: OPENAI_API_KEY not set ==="
+  log "=== Recordings harvest SKIPPED: OPENAI_API_KEY not set (put it in ~/.sanbrain.env) ==="
   echo "Recordings harvest: SKIPPED (no API key)"
+  heartbeat harvest-recordings skip "OPENAI_API_KEY not set"
   exit 0
 fi
 
 if ! ls "$MEETINGS" >/dev/null 2>&1; then
   log "=== Recordings harvest SKIPPED: cannot access Meetings folder ==="
   echo "Recordings harvest: SKIPPED (no access to Meetings/)"
+  heartbeat harvest-recordings skip "no access to Meetings/"
   exit 0
 fi
 
@@ -54,17 +52,14 @@ log "=== Recordings harvest started ==="
 # "Audio Recording 2026-05-28 at 8.46.53.m4a" → "memo-2026-05-28-0846.txt"
 transcript_name() {
   local base="$1"
-  # Extract date and time from filename
   local date_part time_part
   if [[ "$base" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2})\ at\ ([0-9]+)\.([0-9]{2})\.[0-9]{2} ]]; then
     date_part="${BASH_REMATCH[1]}"
-    # Zero-pad hour and combine with minutes (drop seconds)
     local hour="${BASH_REMATCH[2]}"
     local min="${BASH_REMATCH[3]}"
     time_part=$(printf "%02d%s" "$hour" "$min")
     echo "memo-${date_part}-${time_part}.txt"
   else
-    # Fallback: sanitize the whole name
     echo "${base%.*}.txt" | tr ' ' '-' | tr '[:upper:]' '[:lower:]'
   fi
 }
@@ -79,37 +74,8 @@ extract_date() {
   fi
 }
 
-# ── Helper: extract time from filename for display ──────────────
-extract_time() {
-  local base="$1"
-  if [[ "$base" =~ at\ ([0-9]+)\.([0-9]{2})\.([0-9]{2}) ]]; then
-    printf "%02d:%s:%s" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
-  else
-    echo ""
-  fi
-}
-
-# ── Phase 1: Transcribe new .m4a files ──────────────────────────
-while IFS= read -r -d '' f; do
-  base=$(basename "$f")
-
-  # Derive transcript name and check if already done
-  txt_name=$(transcript_name "$base")
-  if [ -f "$TRANSCRIPTS/$txt_name" ]; then
-    continue
-  fi
-
-  # Check file size
-  fsize=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null)
-  if [ "${fsize:-0}" -gt "$MAX_SIZE" ]; then
-    log "SKIP (>25MB): $base ($(( fsize / 1048576 ))MB)"
-    SKIPPED=$((SKIPPED + 1))
-    continue
-  fi
-
-  log "Transcribing: $base → $txt_name"
-
-  # Call Whisper API via OpenAI SDK (same as /transcribe skill)
+# ── Helper: transcribe one audio file (stdout = transcript) ─────
+whisper_one() {
   python3 -c "
 from openai import OpenAI
 import sys
@@ -117,79 +83,120 @@ client = OpenAI()
 with open(sys.argv[1], 'rb') as f:
     text = client.audio.transcriptions.create(model='whisper-1', file=f, response_format='text')
 print(text, end='')
-" "$f" > "$TRANSCRIPTS/$txt_name" 2>>"$LOG"
+" "$1" 2>>"$LOG"
+}
 
-  if [ $? -eq 0 ] && [ -s "$TRANSCRIPTS/$txt_name" ]; then
+# ── Helper: transcribe with chunking for >25MB files ────────────
+transcribe_file() { # audio_path out_txt
+  local f="$1" out="$2"
+  local fsize
+  fsize=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null)
+
+  if [ "${fsize:-0}" -le "$MAX_SIZE" ]; then
+    whisper_one "$f" > "$out"
+    [ -s "$out" ] && return 0
+    rm -f "$out"; return 1
+  fi
+
+  # Chunk path
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    log "GAP: $(basename "$f") is >25MB and ffmpeg is not installed — cannot chunk. brew install ffmpeg"
+    return 2
+  fi
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  log "Chunking $(basename "$f") ($(( fsize / 1048576 ))MB) for transcription"
+  if ! ffmpeg -hide_banner -loglevel error -i "$f" -f segment -segment_time 600 -c copy "$tmpdir/chunk-%03d.m4a" 2>>"$LOG"; then
+    log "FAIL: ffmpeg chunking failed for $(basename "$f")"
+    rm -rf "$tmpdir"; return 1
+  fi
+  : > "$out.tmp"
+  local chunk ok=true
+  for chunk in "$tmpdir"/chunk-*.m4a; do
+    [ -e "$chunk" ] || continue
+    if ! whisper_one "$chunk" >> "$out.tmp"; then
+      ok=false; break
+    fi
+    printf '\n' >> "$out.tmp"
+  done
+  rm -rf "$tmpdir"
+  if [ "$ok" = true ] && [ -s "$out.tmp" ]; then
+    mv "$out.tmp" "$out"; return 0
+  fi
+  rm -f "$out.tmp"; return 1
+}
+
+# ── Phase 1: Transcribe new .m4a files (chunked when needed) ────
+while IFS= read -r -d '' f; do
+  base=$(basename "$f")
+  txt_name=$(transcript_name "$base")
+  [ -f "$TRANSCRIPTS/$txt_name" ] && continue
+
+  log "Transcribing: $base → $txt_name"
+  transcribe_file "$f" "$TRANSCRIPTS/$txt_name"
+  rc=$?
+  if [ $rc -eq 0 ]; then
     TRANSCRIBED=$((TRANSCRIBED + 1))
     log "OK: $txt_name ($(wc -c < "$TRANSCRIPTS/$txt_name") bytes)"
   else
-    rm -f "$TRANSCRIPTS/$txt_name"
-    log "FAIL: $base"
+    FAILED=$((FAILED + 1))
+    log "FAIL: $base (rc=$rc)"
   fi
-
 done < <(find "$MEETINGS" -maxdepth 1 -name "*.m4a" -type f -print0 2>/dev/null)
 
-# ── Phase 2: Copy Apple summary .txt files ──────────────────────
+# ── Phase 2: Copy Apple summary .txt files (marked as summaries) ─
+# These are AI-generated summaries, NOT verbatim transcripts. They are kept
+# because they may cover recordings we never got audio for, but they carry a
+# fidelity marker so ingest treats the framing as unverified.
 while IFS= read -r -d '' f; do
   base=$(basename "$f")
-  # Sanitize name for transcript store
   safe_name=$(echo "$base" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
-  if [ ! -f "$TRANSCRIPTS/$safe_name" ]; then
-    cp "$f" "$TRANSCRIPTS/$safe_name"
-    log "Apple summary copied: $base → $safe_name"
+  if [ ! -f "$TRANSCRIPTS/apple-summary-$safe_name" ]; then
+    cp "$f" "$TRANSCRIPTS/apple-summary-$safe_name"
+    log "Apple summary copied: $base → apple-summary-$safe_name"
   fi
 done < <(find "$MEETINGS" -maxdepth 1 -name "*.txt" -type f -print0 2>/dev/null)
 
-# ── Phase 3: Deliver new transcripts to raw/ ────────────────────
-# Deliver transcripts modified today or yesterday (nightly harvest window)
+# ── Phase 3: Deliver undelivered transcripts to raw/ ────────────
+# State-file tracked. No date window — undelivered means deliver.
 while IFS= read -r -d '' txt; do
   txt_base=$(basename "$txt")
   slug="${txt_base%.txt}"
+
+  # Already delivered? (state file is the source of truth)
+  grep -qxF "$slug" "$DELIVERED_LIST" && continue
+
   raw_target="$VAULT/raw/voice-${slug}.md"
+  [ -f "$raw_target" ] && { echo "$slug" >> "$DELIVERED_LIST"; continue; }
 
-  # Skip if already delivered
-  if [ -f "$raw_target" ]; then
-    continue
-  fi
-
-  # Extract date from filename, or use file modification date
   file_date=$(extract_date "$txt_base")
   file_time=""
-  # Try to get time from original memo naming
   if [[ "$txt_base" =~ ^memo-([0-9]{4}-[0-9]{2}-[0-9]{2})-([0-9]{2})([0-9]{2}) ]]; then
     file_date="${BASH_REMATCH[1]}"
     file_time="${BASH_REMATCH[2]}:${BASH_REMATCH[3]}"
   fi
 
-  # Only deliver files from today or yesterday
-  if [[ "$file_date" != "$TODAY" && "$file_date" != "$YESTERDAY" ]]; then
-    # Also check file modification time as fallback
-    mod_date=$(stat -f "%Sm" -t "%Y-%m-%d" "$txt" 2>/dev/null || stat -c "%y" "$txt" 2>/dev/null | cut -d' ' -f1)
-    if [[ "$mod_date" != "$TODAY" && "$mod_date" != "$YESTERDAY" ]]; then
-      continue
-    fi
-  fi
-
-  # Read transcript content
   content=$(cat "$txt")
-  if [ -z "$content" ]; then
-    continue
-  fi
+  [ -z "$content" ] && continue
 
-  # Build display header
+  fidelity="verbatim-whisper"
   header="Voice Memo"
+  if [[ "$txt_base" == apple-summary-* ]]; then
+    fidelity="apple-summary"
+    header="Recording Summary (Apple AI — framing unverified)"
+  fi
   if [ -n "$file_time" ]; then
-    header="Voice Memo — ${file_date} ${file_time}"
+    header="$header — ${file_date} ${file_time}"
   else
-    header="Voice Memo — ${file_date}"
+    header="$header — ${file_date}"
   fi
 
-  # Write frontmattered markdown to raw/
   {
     echo "---"
     echo "type: voice-memo"
     echo "date: $file_date"
     echo "source: harvest-recordings"
+    echo "fidelity: $fidelity"
     echo "auto_process: true"
     echo "---"
     echo ""
@@ -198,12 +205,18 @@ while IFS= read -r -d '' txt; do
     echo "$content"
   } > "$raw_target"
 
+  echo "$slug" >> "$DELIVERED_LIST"
   DELIVERED=$((DELIVERED + 1))
-  log "Delivered: $txt_base → $(basename "$raw_target")"
+  log "Delivered: $txt_base → $(basename "$raw_target") (fidelity: $fidelity)"
 
 done < <(find "$TRANSCRIPTS" -maxdepth 1 -name "*.txt" -type f -print0 2>/dev/null)
 
 # ── Summary ─────────────────────────────────────────────────────
 echo "Recordings harvest: $TRANSCRIBED transcribed, $DELIVERED delivered to raw/"
-[ $SKIPPED -gt 0 ] && echo "  ($SKIPPED files skipped: >25MB)"
-log "=== Complete: $TRANSCRIBED transcribed, $DELIVERED delivered, $SKIPPED skipped ==="
+[ $FAILED -gt 0 ] && echo "  ($FAILED files FAILED — see logs/recordings.log)"
+log "=== Complete: $TRANSCRIBED transcribed, $DELIVERED delivered, $FAILED failed ==="
+if [ $FAILED -gt 0 ]; then
+  heartbeat harvest-recordings warn "$TRANSCRIBED transcribed, $DELIVERED delivered, $FAILED FAILED"
+else
+  heartbeat harvest-recordings ok "$TRANSCRIBED transcribed, $DELIVERED delivered"
+fi

@@ -2,3 +2,9 @@
 node_modules/
 *.log
 .env
+# Runtime state: machine-written checkpoints, handoffs, heartbeats
+.state/
+logs/
+# Local book-text cache (PDF extractions never leave the machine)
+.context/book-text/
+__pycache__/

@@ -1,6 +1,6 @@
 ---
 name: claude-extract
-version: 2.0.0
+version: 2.1.0
 description: |
   Extract decisions, entities, insights, and action items from Claude Code
   sessions. This captures Santiago's highest-volume data source — his AI
@@ -57,7 +57,15 @@ CLAUDE_CODE_SESSIONS="$HOME/.claude/projects/*/sessions"
    - `*.jsonl` files (session transcripts)
    - `memory/` subdirectory (persistent memory files, including `MEMORY.md`)
 
-2. Determine the "last extraction" timestamp. Check `log.md` for the most recent `[claude-extract] Run complete` entry. Only process sessions and memory files modified after that timestamp. If no previous run found, process the last 7 days of data.
+2. Determine the "last extraction" timestamp. Read the machine-written state
+   file `~/sanbrain/.state/claude-extract.last` (one ISO timestamp, written by
+   the wrapper script after each successful run — also passed to you as
+   "Last successful run" in the prompt). Only process sessions and memory files
+   modified after that timestamp.
+   Fallback only if the state file is missing AND no timestamp was passed in:
+   check `log.md` for the most recent `[claude-extract] Run complete` entry.
+   If neither exists, process the last 7 days of data.
+   Never write the state file yourself — the wrapper owns it.
 
 3. Log:
    ```

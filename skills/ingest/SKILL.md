@@ -1,6 +1,6 @@
 ---
 name: ingest
-version: 1.0.0
+version: 1.1.0
 description: |
   Unified ingestion pipeline. Scans the raw/ folder in the vault, detects file
   type (PDF, audio transcript, meeting notes, research, articles, URLs, plain
@@ -66,10 +66,16 @@ CRITICAL_FACTS="$VAULT_PATH/CRITICAL_FACTS.md"
 
 List all files in `raw/` (non-recursive, exclude `archive/` subdirectory).
 
+**System files — do not touch.** Files with frontmatter `type: downloads-manifest`
+or `type: calendar-reminders` are script-owned interface files (the morning brief
+reads them; nightly.sh archives them mechanically). Skip them silently: do NOT
+extract from them, do NOT archive them, do NOT log a warning.
+
 For each file, classify by type using this decision tree:
 
 | Extension / Signal | Type | Handler |
 |---|---|---|
+| Frontmatter `type: downloads-manifest` or `type: calendar-reminders` | `system-file` | Skip silently, never archive |
 | `.pdf` | `pdf` | Phase 2a |
 | `.mp3`, `.m4a`, `.wav`, `.ogg` | `audio-transcript` | Phase 2b |
 | `.md` or `.txt` with `attendees:` in frontmatter or "Meeting" in first 5 lines | `meeting-notes` | Phase 2c |
@@ -126,6 +132,11 @@ Process each file according to its type. Every handler produces a uniform extrac
 #### Phase 2b: Audio Transcript
 
 1. If the file is raw audio, note that transcription is required first. Log a warning and skip if no transcript is available. If a `.txt` or `.md` companion file exists with the same name, use that as the transcript.
+1b. **Fidelity check**: if frontmatter has `fidelity: apple-summary`, this is an
+   AI-generated summary, NOT a verbatim transcript. Treat its framing as
+   unverified: extract facts conservatively, cite as `(Apple AI summary, date)`,
+   and do not treat its emphasis or interpretation as Santiago's. Verbatim
+   transcripts (`fidelity: verbatim-whisper`) are the trusted record.
 2. Parse the transcript for speakers, topics, decisions.
 3. Extract attendees (treat as meeting if 2+ speakers detected).
 4. Pull action items and key insight.

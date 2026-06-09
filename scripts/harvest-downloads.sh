@@ -15,9 +15,7 @@
 #
 # Called by nightly.sh before the 4-skill chain.
 
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
-SANBRAIN="$HOME/sanbrain"
-VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT"
+source "$(dirname "$0")/lib.sh"
 DOWNLOADS="$HOME/Downloads"
 TODAY=$(date +%Y-%m-%d)
 MANIFEST="$VAULT/raw/downloads-manifest-${TODAY}.md"
@@ -27,12 +25,11 @@ HARVESTED=()
 DESK_ITEMS=()
 CLEANED=()
 
-log() { echo "$(date +%Y-%m-%dT%H:%M:%S) $1" >> "$LOG"; }
-
 # ── Pre-flight: verify Downloads access ──────────────────────────
 if ! ls "$DOWNLOADS" >/dev/null 2>&1; then
   log "=== Downloads harvest SKIPPED: cannot access $DOWNLOADS (FDA not granted) ==="
   echo "Downloads harvest: SKIPPED (no access)"
+  heartbeat harvest-downloads skip "no Downloads access (FDA not granted)"
   exit 0
 fi
 
@@ -185,7 +182,12 @@ if [ ${#DESK_ITEMS[@]} -gt 0 ] || [ ${#HARVESTED[@]} -gt 0 ]; then
     fi
 
     if [ ${#DESK_ITEMS[@]} -gt 0 ]; then
-      echo "## On Your Desk"
+      # Section name is a contract: morning-brief copies "## One-Way Doors"
+      # into the brief, and process-approved-deletions.py allow-lists only
+      # checkbox items found under it. Do not rename casually.
+      echo "## One-Way Doors"
+      echo ""
+      echo "Check an item to approve DELETING it from Downloads on the next nightly run."
       echo ""
 
       # Group by category
@@ -209,3 +211,4 @@ fi
 # ── Summary ──────────────────────────────────────────────────────
 echo "Downloads harvest: ${#HARVESTED[@]} harvested, ${#DESK_ITEMS[@]} items on desk, ${#CLEANED[@]} noise cleaned"
 log "=== Complete: ${#HARVESTED[@]} harvested, ${#DESK_ITEMS[@]} on desk, ${#CLEANED[@]} noise ==="
+heartbeat harvest-downloads ok "${#HARVESTED[@]} harvested, ${#DESK_ITEMS[@]} on desk"

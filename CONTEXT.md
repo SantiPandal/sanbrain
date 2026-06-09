@@ -144,20 +144,26 @@ These exist in the vault Archive/ folder. Do not update or maintain.
 
 ## 5 Core Skills
 
-| Skill | Purpose | Cron |
+| Skill | Purpose | When |
 |-------|---------|------|
-| **ingest** | Scan raw/, classify, extract, distribute to wiki/, archive | 10:00 PM |
-| **claude-extract** | Pull decisions/entities/insights from ~/.claude/ sessions | 10:30 PM |
-| **entity-update** | Back-links, stubs, enrichment, duplicate merge | 11:00 PM |
-| **context-maintain** | Rewrite living context files per business + personal | 11:15 PM |
+| **ingest** | Scan raw/, classify, extract, distribute to wiki/, archive | Nightly chain (10 PM), stage 1 |
+| **claude-extract** | Pull decisions/entities/insights from ~/.claude/ sessions | Nightly chain, stage 2 |
+| **entity-update** | Back-links, stubs, enrichment, duplicate merge | Nightly chain, stage 3 |
+| **context-maintain** | Rewrite living context files per business + personal | Nightly chain, stage 4 |
 | **morning-brief** | Daily deliverable with changes, connections, review prompts | 7:00 AM |
+
+Each nightly stage runs as its OWN `claude -p` call. Stages pass structured
+handoff JSON (`~/sanbrain/.state/handoffs/<skill>.json`) to the next stage and
+the wrapper writes a state checkpoint (`~/sanbrain/.state/<skill>.last`) on
+success. If you are executing one of these skills, execute ONLY that skill —
+downstream skills run as separate stages.
 
 ### Skill Chain
 
 ```
-ingest ──→ entity-update ──→ context-maintain (if business-relevant)
-claude-extract ──→ entity-update ──→ context-maintain (if business-relevant)
-morning-brief reads everything, writes only the brief
+ingest ──handoff──→ entity-update ──→ context-maintain (if business-relevant)
+claude-extract ──handoff──→ entity-update ──→ context-maintain (if business-relevant)
+morning-brief reads everything (incl. vault-doctor report), writes only the brief
 ```
 
 Each skill has a full contract at `~/sanbrain/skills/[name]/SKILL.md`.

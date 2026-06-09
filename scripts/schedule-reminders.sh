@@ -7,14 +7,10 @@
 # Reminder delivery: sanbrain-admin reads reminders.md → creates Telegram messages
 # at the right times. This avoids the CLI scope-approval requirement.
 
-export PATH="$HOME/.nvm/versions/node/v23.3.0/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
-SANBRAIN="$HOME/sanbrain"
-VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT"
+source "$(dirname "$0")/lib.sh"
 LOG="$SANBRAIN/logs/reminders.log"
 TODAY=$(date +%Y-%m-%d)
 CALENDARS='{"Work", "Calendar", "Calendario", "Dansan"}'
-
-log() { echo "$(date +%Y-%m-%dT%H:%M:%S) $1" >> "$LOG"; }
 
 # ── Get today's events via AppleScript ───────────────────────────
 EVENTS=$(osascript -e "
@@ -52,6 +48,7 @@ return output
 
 if [ -z "$EVENTS" ]; then
   log "No events today"
+  heartbeat schedule-reminders ok "no events today"
   echo ""
   exit 0
 fi
@@ -150,6 +147,18 @@ if [ -n "$OPENCLAW" ]; then
       2>/dev/null && log "Cron created: $event_name" || log "Cron failed (scope?): $event_name — fallback to reminders file"
   done <<< "$EVENTS"
 fi
+
+# ── Guaranteed agenda push ───────────────────────────────────────
+# Per-event 10-min reminders depend on openclaw cron scope being approved,
+# which can silently fail. The day's agenda is pushed directly so at minimum
+# Santiago always gets one Telegram message with today's events.
+AGENDA=$(echo -e "$EVENTS_FOR_BRIEF" | sed '/^$/d')
+if [ -n "$AGENDA" ]; then
+  notify "Agenda $TODAY:
+$AGENDA
+(Recuerda grabar las reuniones.)"
+fi
+heartbeat schedule-reminders ok "$(echo "$AGENDA" | wc -l | tr -d ' ') events, agenda pushed"
 
 # ── Output events for morning.sh ─────────────────────────────────
 echo -e "$EVENTS_FOR_BRIEF"

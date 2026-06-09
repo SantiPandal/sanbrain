@@ -3,9 +3,8 @@
 # Pulls today's PR activity across tracked repos → writes to raw/ for ingest.
 # Called by nightly.sh before the 4-skill chain.
 
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
-SANBRAIN="$HOME/sanbrain"
-VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT"
+source "$(dirname "$0")/lib.sh"
+LOG="$SANBRAIN/logs/github.log"
 TODAY=$(date +%Y-%m-%d)
 YESTERDAY=$(date -v-1d +%Y-%m-%d 2>/dev/null || date -d "yesterday" +%Y-%m-%d)
 OUTPUT="$VAULT/raw/github-prs-${TODAY}.md"
@@ -20,6 +19,7 @@ REPOS=(
 # ── Check gh auth ────────────────────────────────────────────────
 if ! gh auth status 2>&1 | grep -q "Logged in"; then
   echo "gh not authenticated, skipping GitHub harvest" >&2
+  heartbeat harvest-github skip "gh not authenticated"
   exit 0
 fi
 
@@ -89,6 +89,8 @@ done
 if [ "$has_activity" = true ]; then
   echo "$CONTENT" > "$OUTPUT"
   echo "GitHub harvest: wrote $OUTPUT"
+  heartbeat harvest-github ok "activity written for ${#REPOS[@]} repos"
 else
   echo "GitHub harvest: no activity since $YESTERDAY"
+  heartbeat harvest-github ok "no activity since $YESTERDAY"
 fi
