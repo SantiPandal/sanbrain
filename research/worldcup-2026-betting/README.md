@@ -28,11 +28,16 @@ Football is a ~2.7-goals-per-match Poisson process: the better team loses 1 in 4
 | 6 | [06-asymmetric-upside.md](06-asymmetric-upside.md) | The hard look at "asymmetric upside": 2002–2022 base rates, favorite-longshot bias magnitudes, where genuine convexity lives (stage markets, MD1 repricing, futures-as-options, Golden Boot structure, biscotto draws) and the lottery-ticket taxonomy |
 | 7 | [07-playbook.md](07-playbook.md) | **The synthesis**: operating principles, the ranked edge map, the pre-tournament watchlist, daily process loop, Phase 2/3 roadmap, hard risk rules |
 | 8 | [08-quant-forecasts.md](08-quant-forecasts.md) | The forecast field vs the market: Nate Silver's PELE (Spain 18.5%, France docked to 11.7%), Opta (Spain 16.1%), Zeileis–Groll hybrid (Germany-bias flag), Goldman (Spain 26%, England 5%), pure Elo, Polymarket/Kalshi (>$2B) — comparison table, model-vs-market disagreements, 2010–2022 track records |
+| 9 | [09-rules-deep-dive.md](09-rules-deep-dive.md) | The regulations, verified: 2026 tiebreakers are HEAD-TO-HEAD first (Art. 13); yellows wipe twice (post-groups AND post-QF); replacement/concussion rules; lightning protocol (resume from minute of stoppage); bookmaker settlement rules for suspended/abandoned matches; new IFAB rules (8-second GK, captain-only) |
+| 10 | [10-player-asymmetries.md](10-player-asymmetries.md) | Player-level alpha: Golden Boot fixture math with dates, verified penalty/set-piece takers, record chases (Mbappé–Fontaine, Messi's June 24 birthday, Ronaldo at 41), suspension-risk map, breakout candidates, softest prop markets |
+| 11 | [11-weather-climate-fit.md](11-weather-climate-fit.md) | Venue climatology vs the actual schedule: the highest heat-stress fixtures table, heat-adapted vs heat-exposed teams, CDMX rainy-season/thunderstorm-delay risk, rain/goals evidence, acclimatization camps, current forecasts |
+| 12 | [12-fanbases-crowds.md](12-fanbases-crowds.md) | Who actually fills each stadium: FIFA ticket sales by country, diaspora mapping per host city, the lopsided-crowd fixture watchlist, crowd→referee bias quantified, visa/ICE attendance wildcards |
+| 14 | [14-weird-tail-events.md](14-weird-tail-events.md) | Tail-event catalog: fair-play tiebreakers, drawing of lots, mutinies/dopings/mid-tournament chaos, biggest ML upsets with closing prices, abandoned-match settlement, and the trigger→overreaction→position checklist |
 
 ## Status
 
-- **Phase 1 — knowledge base: DONE** (this dossier, 2026-06-09).
-- **Phase 2 — prediction model:** build per chapter 4 §7 / playbook §5. Blocker to resolve first: official FIFA tiebreaker order (sources conflict — see playbook §5 open items).
+- **Phase 1 — knowledge base: DONE** (this dossier, 2026-06-09). Nuance layer (chapters 8–14) added same day; chapter 13 (Mexico deep dive) in progress.
+- **Phase 2 — prediction model:** build per chapter 4 §7 / playbook §5. Former tiebreaker blocker RESOLVED (chapter 9: head-to-head first).
 - **Phase 3 — sized bet list:** model output × live prices × the playbook's mechanism filter.
 
 ## House rules
