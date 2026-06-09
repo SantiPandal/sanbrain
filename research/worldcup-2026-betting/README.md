@@ -27,6 +27,7 @@ Football is a ~2.7-goals-per-match Poisson process: the better team loses 1 in 4
 | 5 | [05-wc2026-landscape.md](05-wc2026-landscape.md) | Ground truth as of June 9, 2026: all 12 groups, schedule, 16 venues, the odds board (Spain/France +450–500 co-favorites), team news (Messi/Yamal hamstrings, Netherlands' gutted defense), rules, bracket paths |
 | 6 | [06-asymmetric-upside.md](06-asymmetric-upside.md) | The hard look at "asymmetric upside": 2002–2022 base rates, favorite-longshot bias magnitudes, where genuine convexity lives (stage markets, MD1 repricing, futures-as-options, Golden Boot structure, biscotto draws) and the lottery-ticket taxonomy |
 | 7 | [07-playbook.md](07-playbook.md) | **The synthesis**: operating principles, the ranked edge map, the pre-tournament watchlist, daily process loop, Phase 2/3 roadmap, hard risk rules |
+| 8 | [08-quant-forecasts.md](08-quant-forecasts.md) | The forecast field vs the market: Nate Silver's PELE (Spain 18.5%, France docked to 11.7%), Opta (Spain 16.1%), Zeileis–Groll hybrid (Germany-bias flag), Goldman (Spain 26%, England 5%), pure Elo, Polymarket/Kalshi (>$2B) — comparison table, model-vs-market disagreements, 2010–2022 track records |
 
 ## Status
 
