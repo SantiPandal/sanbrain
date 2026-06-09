@@ -11,21 +11,17 @@
 #
 # Called by nightly.sh before the 4-skill chain.
 
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
-SANBRAIN="$HOME/sanbrain"
-VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT"
+source "$(dirname "$0")/lib.sh"
 OPENCLAW_DIR="$HOME/.openclaw/agents"
 TODAY=$(date +%Y-%m-%d)
 LOG="$SANBRAIN/logs/openclaw.log"
 OUTPUT="$VAULT/raw/openclaw-conversations-${TODAY}.md"
 
-ts() { date +%Y-%m-%dT%H:%M:%S; }
-log() { echo "$(ts) $1" >> "$LOG"; }
-
 # ── Pre-flight ──────────────────────────────────────────────────
 if [ ! -d "$OPENCLAW_DIR" ]; then
   log "=== OpenClaw harvest SKIPPED: $OPENCLAW_DIR not found ==="
   echo "OpenClaw harvest: SKIPPED (no .openclaw dir)"
+  heartbeat harvest-openclaw skip "no .openclaw dir"
   exit 0
 fi
 
@@ -134,6 +130,7 @@ if not conversations:
     print('NO_ACTIVITY')
     sys.exit(0)
 
+truncated = 0
 print(f'TOTAL:{total_messages}')
 for key in sorted(conversations.keys()):
     msgs = conversations[key]
@@ -143,18 +140,24 @@ for key in sorted(conversations.keys()):
     for m in msgs:
         prefix = f'**{m[\"sender\"]}**' if m['sender'] else f'**{m[\"role\"]}**'
         time_tag = f'[{m[\"time\"]}] ' if m['time'] else ''
-        # Truncate very long messages (tool outputs etc)
+        # Truncate very long messages (tool outputs etc) — but account for it,
+        # so the capture loss is visible downstream instead of silent.
         text = m['text']
-        if len(text) > 2000:
-            text = text[:2000] + '\\n\\n*(truncated)*'
+        if len(text) > 4000:
+            truncated += 1
+            text = text[:4000] + '\\n\\n*(truncated — full text in the session jsonl)*'
         print(f'{time_tag}{prefix}: {text}')
         print()
+if truncated:
+    print(f'\\n> Capture note: {truncated} message(s) truncated at 4000 chars. '
+          f'Full text remains in ~/.openclaw/agents/*/sessions/.')
 " 2>>"$LOG")
 
 # ── Check result ────────────────────────────────────────────────
 if [ "$RESULT" = "NO_ACTIVITY" ] || [ -z "$RESULT" ]; then
   log "No OpenClaw activity for $TODAY"
   echo "OpenClaw harvest: no activity today"
+  heartbeat harvest-openclaw ok "no activity today"
   exit 0
 fi
 
@@ -180,3 +183,4 @@ BODY=$(echo "$RESULT" | tail -n +2)
 
 log "Wrote $OUTPUT ($MSG_COUNT messages)"
 echo "OpenClaw harvest: $MSG_COUNT messages written to raw/"
+heartbeat harvest-openclaw ok "$MSG_COUNT messages"

@@ -1,6 +1,6 @@
 ---
 name: morning-brief
-version: 1.0.0
+version: 1.1.0
 description: |
   The daily deliverable. Creates a single, concise file that Santiago reads
   every morning to know what happened overnight, what needs attention, and
@@ -254,7 +254,7 @@ Aggregate all items requiring Santiago's review or decision:
 3. **Stale pages**: entity pages where compiled truth references facts older than 30 days with no recent confirmation. Context files not refreshed in 7+ days.
 4. **Unresolved open threads**: action items from entity or project pages that have been open for 14+ days.
 5. **Failed skill runs**: any errors logged by other skills since the last brief.
-6. **Downloads one-way doors**: If `raw/downloads-manifest-*.md` exists for today or yesterday, read it and include the `## One-Way Doors` section as a sub-section of Attention Required. Present the checkboxes as-is — Santiago checks items to approve deletion (nightly.sh reads his checks and deletes approved files). Group header: "### Downloads — pending deletion approval".
+6. **Downloads one-way doors**: If `raw/downloads-manifest-*.md` exists for today or yesterday (manifests are system files — ingest never archives them; nightly.sh rotates them mechanically), read the newest one and copy its `## One-Way Doors` section verbatim as a sub-section of Attention Required. Present the checkboxes EXACTLY as written in the manifest — `- [ ] **name** (size, date)` — do not rephrase the bolded filenames; the deletion script validates checked names against the manifest, so altered names will never be deleted. Group header: "### Downloads — pending deletion approval".
 
 Each attention item must be actionable: state what Santiago needs to DO, not just what happened.
 
@@ -287,7 +287,15 @@ Rules for questions:
 
 ### Phase 6: Compute Vault Health
 
-Scan the vault for metrics:
+**If a Vault Doctor report was provided in your prompt (or exists at
+`wiki/logs/doctor-YYYY-MM-DD.md` for today): use its numbers directly — do NOT
+recompute counts, orphans, or staleness yourself.** The doctor is mechanical and
+exhaustive; your job is only to (a) copy its metrics into the Vault Health
+section, (b) turn its Findings into Attention Required items where action is
+needed (broken links, unpropagated attendees, sensors failing 48h+, raw/
+backlog), and (c) link the report.
+
+Only if no doctor report exists, fall back to scanning the vault yourself:
 
 1. **Total pages**: count all `.md` files under `wiki/`.
 2. **Entities**: count files in `wiki/entities/`. Separate by `type: person` and `type: business` from frontmatter.

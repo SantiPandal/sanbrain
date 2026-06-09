@@ -1,19 +1,26 @@
 #!/bin/bash
 # Sanbrain: process brief feedback
-# Triggered by fswatch when Santiago edits today's brief.
-# Lightweight — reads edits, propagates to entities/context. Not the full 4-skill chain.
+# Runs via cron (midday + evening) or fswatch. Only spends an LLM call when
+# the brief actually changed since the last processing — the mtime gate makes
+# polling free, so no fswatch daemon is required.
+# Lightweight — reads edits, propagates to entities/context. Not the full chain.
 
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
-CLAUDE="$HOME/.local/bin/claude"
-SANBRAIN="$HOME/sanbrain"
-VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT"
+source "$(dirname "$0")/lib.sh"
+LOG="$SANBRAIN/logs/brief-feedback.log"
 TODAY=$(date +%Y-%m-%d)
 BRIEF="$VAULT/wiki/daily/${TODAY}-brief.md"
 
 # Only run if today's brief exists
 [ -f "$BRIEF" ] || exit 0
 
-# Debounce: skip if we processed in the last 5 minutes
+# Change gate: skip unless the brief was modified since we last processed it.
+brief_mtime=$(stat -f %m "$BRIEF" 2>/dev/null || stat -c %Y "$BRIEF" 2>/dev/null)
+last_processed=$(state_get brief-feedback.mtime)
+if [ -n "$last_processed" ] && [ "$brief_mtime" = "$last_processed" ]; then
+  exit 0
+fi
+
+# Debounce: skip if we processed in the last 5 minutes (rapid edit bursts)
 LOCK="$SANBRAIN/logs/.brief-feedback-lock"
 if [ -f "$LOCK" ]; then
   last=$(stat -f %m "$LOCK" 2>/dev/null || stat -c %Y "$LOCK" 2>/dev/null)
@@ -24,8 +31,9 @@ fi
 touch "$LOCK"
 
 # Pre-flight: check claude is authenticated
-if ! "$CLAUDE" auth status 2>&1 | grep -q '"loggedIn": true'; then
+if ! claude_ok; then
   echo "ERROR: claude not logged in" >&2
+  heartbeat brief-feedback error "claude not logged in"
   exit 1
 fi
 
@@ -64,4 +72,7 @@ Santiago has edited today's brief. Process his feedback:
 - Do not rewrite context files (that's context-maintain's job) — only update entity timelines and compiled truth
 - Be surgical: small targeted updates, not rewrites" >> "$SANBRAIN/logs/brief-feedback.log" 2>&1
 
+state_set brief-feedback.mtime "$brief_mtime"
+"$SANBRAIN/scripts/vault-git.sh" checkpoint "post-brief-feedback" >> "$LOG" 2>&1
+heartbeat brief-feedback ok "processed edits to $(basename "$BRIEF")"
 echo "$(date +%Y-%m-%dT%H:%M:%S) Brief feedback processed" >> "$SANBRAIN/logs/brief-feedback.log"
