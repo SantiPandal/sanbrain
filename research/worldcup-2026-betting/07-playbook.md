@@ -102,7 +102,7 @@ These came out of the research with structural support. None is a bet until chec
 1. Data: martj42 international results CSV + eloratings.net snapshot + fixtures (openfootball) → DuckDB.
 2. Ratings: own Elo (K=60/50/40/30/20, margin multipliers, +100 hosts) + Transfermarkt squad values (availability-adjusted).
 3. Goal model: Elo→(λ,μ) nested Poisson regression, Dixon-Coles ρ, friendly down-weighting, 2–4yr decay half-life. `penaltyblog` does the heavy lifting.
-4. Simulator: 100k Monte Carlo runs of the real bracket — **resolve the tiebreaker discrepancy first** (h2h-first vs GD-first: chapters 4 and 5 found conflicting sources; check the official FIFA regulations PDF), third-place ranking + the 495-combination R32 annex, ET at λ/3 with haircut, shootouts 50/50, parameter redraws per run.
+4. Simulator: 100k Monte Carlo runs of the real bracket — tiebreakers RESOLVED (chapter 9): within-group = head-to-head first (points→GD→goals between tied teams, recursive), then overall GD→goals→conduct→FIFA ranking; cross-group third-place table = overall numbers first. Plus the 495-combination R32 annex, ET at λ/3 with haircut, shootouts 50/50, parameter redraws per run.
 5. Market layer: The Odds API → Shin de-vig → blend 80/20 market/model → EV table with fractional-Kelly stakes.
 6. Validation gate: blended forecast must weakly dominate market-only on WC 2010–2022 + Euros backtest (RPS/log-loss) before real sizing.
 
@@ -112,7 +112,7 @@ These came out of the research with structural support. None is a bet until chec
 - Execution notes per bet: which book/venue has the best price, promo overlay if any, hedge plan for futures.
 
 **Open items to resolve before Phase 2 sizing:**
-1. Official 2026 group tiebreaker order (FIFA regulations PDF) — chapters 4/5 sources conflict.
+1. ~~Official 2026 group tiebreaker order~~ RESOLVED (chapter 9): head-to-head first per Article 13 of the official regulations. Bonus finds: yellows wipe TWICE (after groups AND after QFs — accumulation bans for the SF/final are near-impossible); abandoned matches resume from the minute of interruption (most storm suspensions will NOT void bets).
 2. Pinnacle's current outright board (couldn't verify) — needed as a sharp futures benchmark alongside Kalshi/Polymarket.
 3. Confirm PK takers per squad after first matches (Golden Boot screen input).
 4. Santiago's actual venue access (MX: Caliente et al. — retail-grade margins; US books require physical presence; prediction markets per KYC) — determines the executable subset of the edge map.
