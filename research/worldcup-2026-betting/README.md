@@ -32,11 +32,12 @@ Football is a ~2.7-goals-per-match Poisson process: the better team loses 1 in 4
 | 10 | [10-player-asymmetries.md](10-player-asymmetries.md) | Player-level alpha: Golden Boot fixture math with dates, verified penalty/set-piece takers, record chases (Mbappé–Fontaine, Messi's June 24 birthday, Ronaldo at 41), suspension-risk map, breakout candidates, softest prop markets |
 | 11 | [11-weather-climate-fit.md](11-weather-climate-fit.md) | Venue climatology vs the actual schedule: the highest heat-stress fixtures table, heat-adapted vs heat-exposed teams, CDMX rainy-season/thunderstorm-delay risk, rain/goals evidence, acclimatization camps, current forecasts |
 | 12 | [12-fanbases-crowds.md](12-fanbases-crowds.md) | Who actually fills each stadium: FIFA ticket sales by country, diaspora mapping per host city, the lopsided-crowd fixture watchlist, crowd→referee bias quantified, visa/ICE attendance wildcards |
+| 13 | [13-mexico-deep-dive.md](13-mexico-deep-dive.md) | El Tri as host: quinto partido base rates, the five-straight-home-matches bracket path, Azteca (bet the altitude, discount the aura), the Mexican betting landscape (Caliente prices Mexico LONGER than US books; Progol overlay; ISR tax math; Polymarket access), and a rich/fair/cheap verdict per market |
 | 14 | [14-weird-tail-events.md](14-weird-tail-events.md) | Tail-event catalog: fair-play tiebreakers, drawing of lots, mutinies/dopings/mid-tournament chaos, biggest ML upsets with closing prices, abandoned-match settlement, and the trigger→overreaction→position checklist |
 
 ## Status
 
-- **Phase 1 — knowledge base: DONE** (this dossier, 2026-06-09). Nuance layer (chapters 8–14) added same day; chapter 13 (Mexico deep dive) in progress.
+- **Phase 1 — knowledge base: DONE** (14 chapters, 2026-06-09). Nuance layer (chapters 8–14) added same day.
 - **Phase 2 — prediction model:** build per chapter 4 §7 / playbook §5. Former tiebreaker blocker RESOLVED (chapter 9: head-to-head first).
 - **Phase 3 — sized bet list:** model output × live prices × the playbook's mechanism filter.
 
