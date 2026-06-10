@@ -48,10 +48,10 @@ Backlog.
 |---|---|---|---|
 | Claude Code — local CLI / Conductor | `~/.claude/projects/*.jsonl` | 🟡 | claude-extract nightly. Known compression: sessions >1000 msgs read first 20 + last 200 only. |
 | Claude Code — web/mobile sessions | Anthropic cloud | 🟡 | Transcripts unreachable from the Mac. Work artifacts (commits/PRs) ARE captured via harvest-github. The thinking is lost. |
-| Claude.ai chats | Anthropic cloud | ❌ | No API for chat history. Close via periodic data export (Settings → Privacy → Export data) → drop zip in `raw/llm-exports/` → parser sensor (Gap Backlog #1). |
-| ChatGPT | OpenAI cloud | ❌ | Same pattern: Settings → Data controls → Export → drop zip. |
-| Grok | xAI cloud | ❌ | Same pattern where export exists; otherwise copy-paste valuable threads to raw/. |
-| OpenClaw agent conversations | `~/.openclaw/agents/*/sessions/` | ✅ | Nightly digest; >4000-char messages truncated but counted in the digest. |
+| Claude.ai chats | Anthropic cloud | 🟡 | Verbatim is unreachable (no API). Capture path: session-end **"wiki this"** self-summary → paste to Telegram sanbrain topic or raw/ (`setup/llm-session-summary-prompt.md`, ingest Phase 2i, `self-summary` fidelity). Signal over exact data — accepted trade 2026-06-09. Official data export remains the archival backstop. |
+| ChatGPT | OpenAI cloud | 🟡 | Same self-summary path. One-time setup: add the prompt to custom instructions. |
+| Grok | xAI cloud | 🟡 | Same self-summary path. |
+| OpenClaw agent conversations | `~/.openclaw/agents/*/sessions/` | ✅ | Nightly digest, VERBATIM; >4000-char messages truncated but counted. Do not add bot-written daily summaries on top — second copy, lower fidelity (agent charter workflow 3 repurposed accordingly). |
 
 ### Consumption (world → brain)
 
@@ -94,7 +94,7 @@ Backlog.
 
 ## Gap backlog (ranked by signal value, per 2026-06-09 answers)
 
-1. **LLM-export sensor** — `raw/llm-exports/` drop zone + parser for Claude.ai / ChatGPT / Grok export zips → per-conversation digests into raw/. Plus a monthly calendar reminder to trigger the exports. Closes the biggest stated gap.
+1. **LLM session capture — DONE as a habit (2026-06-09):** "wiki this" self-summary at session end → Telegram/raw (`setup/llm-session-summary-prompt.md`). Remaining optional backstop: an export-zip parser for the official Claude.ai/ChatGPT/Grok data exports, if archival completeness ever matters. Build only on demand.
 2. **Media-queue sensor** — links shared to Telegram (or a raw/media-queue.md note) get resolved nightly: YouTube transcript fetch, X post text capture → raw/. Until built: the share-to-Telegram habit alone already lands the URL + your one-line take in the vault.
 3. **Dynamic GitHub repo list** — replace the hardcoded array with `gh repo list`.
 4. **Calendar back-fill** — nightly: yesterday's events → raw/ as meeting stubs (attendees become entity timeline entries even without a recording).

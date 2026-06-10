@@ -164,35 +164,20 @@ When Santiago says "ingest", "enrich X", "update context", "brief me":
 3. Execute the skill against the vault.
 4. Log all actions to log.md.
 
-### 3. End-of-Day Summary
-At the end of each interaction day, write a summary to:
-```
-VAULT/raw/openclaw-summary-YYYY-MM-DD.md
-```
+### 3. LLM Session Summaries (relay)
+Do NOT write end-of-day conversation summaries — harvest-openclaw captures
+every agent conversation VERBATIM each night, and a summary would be a second,
+lower-fidelity copy of the same source.
 
-Format:
-```markdown
----
-type: openclaw-summary
-date: YYYY-MM-DD
-source: san-brain-admin
----
-# OpenClaw Summary — YYYY-MM-DD
-
-## Interactions
-- [summary of each conversation topic]
-
-## Decisions Made
-- [decisions Santiago communicated]
-
-## Entities Mentioned
-- [[entity-slug]] — context
-
-## Action Items
-- [things to track]
-```
-
-The nightly batch picks this up and processes it automatically.
+What you DO handle: Santiago pastes `## LLM Session Summary — [tool] — [topic]`
+blocks into this topic from ChatGPT/Claude.ai/Grok (format:
+`~/sanbrain/setup/llm-session-summary-prompt.md`). When one arrives:
+1. Acknowledge in one line (it's already captured — the nightly harvest reads
+   this conversation).
+2. If he asks for immediate filing, write the block as-is to
+   `VAULT/raw/llm-summary-[tool]-YYYY-MM-DD-[slug].md` and log it.
+3. Never editorialize the summary content — it carries self-summary fidelity
+   and ingest treats its framing as unverified.
 
 ### 4. Vault Health Checks
 Proactively monitor:

@@ -1,6 +1,6 @@
 ---
 name: ingest
-version: 1.1.0
+version: 1.2.0
 description: |
   Unified ingestion pipeline. Scans the raw/ folder in the vault, detects file
   type (PDF, audio transcript, meeting notes, research, articles, URLs, plain
@@ -76,6 +76,7 @@ For each file, classify by type using this decision tree:
 | Extension / Signal | Type | Handler |
 |---|---|---|
 | Frontmatter `type: downloads-manifest` or `type: calendar-reminders` | `system-file` | Skip silently, never archive |
+| `.md`/`.txt` whose first heading starts with `## LLM Session Summary` | `llm-session-summary` | Phase 2i |
 | `.pdf` | `pdf` | Phase 2a |
 | `.mp3`, `.m4a`, `.wav`, `.ogg` | `audio-transcript` | Phase 2b |
 | `.md` or `.txt` with `attendees:` in frontmatter or "Meeting" in first 5 lines | `meeting-notes` | Phase 2c |
@@ -94,6 +95,19 @@ Log to `log.md`:
 ```
 
 ### Phase 2: Extract Content
+
+**Fidelity Rule (applies to every handler):** inputs that are AI-generated
+summaries rather than verbatim records — `fidelity: apple-summary`,
+`fidelity: self-summary`, or any LLM Session Summary block — are SIGNAL, not
+RECORD. Extract facts, decisions, and entities conservatively; cite as
+`(self-summary via [tool], YYYY-MM-DD)`; never present the summary's framing
+or emphasis as Santiago's own words. Verbatim sources (Whisper transcripts,
+session logs) are the trusted record.
+
+**Embedded summaries:** if any input (including OpenClaw conversation digests)
+contains embedded `## LLM Session Summary` blocks, additionally process each
+block through Phase 2i — Santiago pastes these into Telegram from ChatGPT,
+Claude.ai, or Grok.
 
 Process each file according to its type. Every handler produces a uniform extraction object:
 
@@ -132,11 +146,9 @@ Process each file according to its type. Every handler produces a uniform extrac
 #### Phase 2b: Audio Transcript
 
 1. If the file is raw audio, note that transcription is required first. Log a warning and skip if no transcript is available. If a `.txt` or `.md` companion file exists with the same name, use that as the transcript.
-1b. **Fidelity check**: if frontmatter has `fidelity: apple-summary`, this is an
-   AI-generated summary, NOT a verbatim transcript. Treat its framing as
-   unverified: extract facts conservatively, cite as `(Apple AI summary, date)`,
-   and do not treat its emphasis or interpretation as Santiago's. Verbatim
-   transcripts (`fidelity: verbatim-whisper`) are the trusted record.
+1b. **Fidelity check**: if frontmatter has `fidelity: apple-summary`, apply the
+   Fidelity Rule (Phase 2 preamble) — this is an AI summary, not a verbatim
+   transcript. `fidelity: verbatim-whisper` is the trusted record.
 2. Parse the transcript for speakers, topics, decisions.
 3. Extract attendees (treat as meeting if 2+ speakers detected).
 4. Pull action items and key insight.
@@ -196,6 +208,26 @@ Process each file according to its type. Every handler produces a uniform extrac
 1. Log the image filename and any metadata.
 2. If OCR is available, extract text.
 3. Otherwise, create a stub reference note with the image embedded.
+
+#### Phase 2i: LLM Session Summary
+
+Session-end summaries from cloud LLMs (ChatGPT, Claude.ai, Grok) that the
+pipeline cannot read directly. Format defined in
+`~/sanbrain/setup/llm-session-summary-prompt.md`. The block is pre-structured:
+
+1. Parse the heading: `## LLM Session Summary — [tool] — [topic]` and the
+   `Date:` line. If the date is missing, use the file/digest date.
+2. Map sections directly into the extraction object: Problem context →
+   `summary`, Decisions → `decisions`, Entities mentioned → `entities`,
+   Insights → `key_insight` (pick the strongest; rest go to raw_text),
+   Action items → `action_items`, Open questions → append to `summary`.
+3. Apply the Fidelity Rule: source citation is
+   `(self-summary via [tool], YYYY-MM-DD)`.
+4. Do NOT create a standalone page for the session. Distribute to entities,
+   projects, ideas, and daily notes like any other extraction — the summary
+   is an input, not a destination.
+5. When the block was embedded in an OpenClaw digest, do not double-count it
+   if the same block also arrived as a raw/ file (dedup by tool + topic + date).
 
 ### Phase 3: Distribute to Wiki
 
