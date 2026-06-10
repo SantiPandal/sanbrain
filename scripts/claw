@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# claw — consult the OpenClaw brain agents (judge, xai, sanbrain-admin, openclaw)
+# from any shell or LLM harness. One synchronous agent turn per call; the answer
+# prints to stdout, log noise stays out of it.
+#
+#   claw <agent>[,<agent>...] [options] <question...>
+#   claw all <question...>
+#   claw --list | --doctor | --help
+#
+# Agents: judge | xai | sanbrain | openclaw | all   (aliases: grok→xai,
+# admin/vault→sanbrain-admin, main/general→openclaw)
+#
+# Options:
+#   --tg           mirror question + answer to the agent's Telegram topic
+#   --timeout N    seconds per agent turn (default 300)
+#   --model ID     model override for this run
+#
+# Exit: 0 if at least one agent answered, 1 otherwise.
+set -uo pipefail
+
+GROUP="${TELEGRAM_GROUP:--1003637114912}"
+TIMEOUT=300
+DELIVER=0
+MODEL=""
+
+usage() {
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+list_agents() {
+  cat <<'EOF'
+Agent           Model            Reach for it when...
+judge           gpt-5.5          High-stakes verdict, reality check, go/no-go, hard-to-vary test, kill-the-thesis pressure.
+xai             grok-4.3         Product/engineering tradeoffs, leverage analysis, architecture critique, feed signal.
+sanbrain        gpt-5.5          "What do we know about X" — vault data, entity history, decisions, relationships.
+openclaw        gpt-5.5          Broad/half-baked thinking, connecting dots across businesses + personal, default catch-all.
+all             —                Same question to all four, answers side by side.
+
+These are real always-on agents with their own memory, vault access, and Telegram
+presence (group "San"). A turn takes 30-120s. Example:
+  claw judge "¿Es buen deal el de Pala? Dame el veredicto y el riesgo principal."
+EOF
+}
+
+doctor() {
+  command -v openclaw >/dev/null || { echo "claw: openclaw CLI not found on PATH" >&2; exit 1; }
+  openclaw health
+}
+
+resolve() {
+  case "$1" in
+    judge) echo "judge" ;;
+    xai|grok|supergrok) echo "xai" ;;
+    sanbrain|sanbrain-admin|admin|vault) echo "sanbrain-admin" ;;
+    openclaw|main|general) echo "openclaw" ;;
+    all) echo "judge xai sanbrain-admin openclaw" ;;
+    *) return 1 ;;
+  esac
+}
+
+thread_for() {
+  case "$1" in
+    judge) echo 32 ;;
+    sanbrain-admin) echo 34 ;;
+    xai) echo 36 ;;
+    openclaw) echo "" ;;  # General topic — no thread id
+  esac
+}
+
+extract_text() {
+  jq -r '
+    ([.payloads[]?.text // empty] | join("\n\n")) as $p
+    | if ($p | length) > 0 then $p
+      else (.reply // .text // .message // empty) end' 2>/dev/null
+}
+
+ask_one() {
+  local id="$1" q="$2" raw text
+  raw=$(openclaw agent --agent "$id" --message "$q" --json --timeout "$TIMEOUT" \
+        ${MODEL:+--model "$MODEL"} 2>/dev/null) || true
+  [ -z "$raw" ] && return 1
+  text=$(printf '%s' "$raw" | extract_text)
+  [ -z "$text" ] && text="$raw"
+  printf '%s\n' "$text"
+}
+
+mirror() {
+  local id="$1" q="$2" a="$3" tid msg
+  tid=$(thread_for "$id")
+  msg="🦞 claw → ${id}
+Q: ${q}
+
+${a}"
+  msg=${msg:0:3900}
+  openclaw message send --channel telegram --target "$GROUP" \
+    ${tid:+--thread-id "$tid"} --message "$msg" >/dev/null 2>&1 \
+    || echo "claw: telegram mirror failed for $id" >&2
+}
+
+AGENT_SPEC=""
+QUESTION=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    -l|--list) list_agents; exit 0 ;;
+    --doctor) doctor; exit $? ;;
+    --tg) DELIVER=1; shift ;;
+    --timeout) TIMEOUT="$2"; shift 2 ;;
+    --model) MODEL="$2"; shift 2 ;;
+    -*) echo "claw: unknown option $1 (see --help)" >&2; exit 1 ;;
+    *)
+      if [ -z "$AGENT_SPEC" ]; then AGENT_SPEC="$1"
+      elif [ -z "$QUESTION" ]; then QUESTION="$1"
+      else QUESTION="$QUESTION $1"
+      fi
+      shift ;;
+  esac
+done
+
+[ -z "$AGENT_SPEC" ] && { usage >&2; exit 1; }
+[ -z "$QUESTION" ] && { echo "claw: missing question (claw <agent> \"<question>\")" >&2; exit 1; }
+
+AGENTS=""
+IFS=',' read -r -a SPECS <<< "$AGENT_SPEC"
+for spec in "${SPECS[@]}"; do
+  ids=$(resolve "$spec") || { echo "claw: unknown agent '$spec' — valid: judge, xai, sanbrain, openclaw, all" >&2; exit 1; }
+  AGENTS="$AGENTS $ids"
+done
+# shellcheck disable=SC2086
+set -- $AGENTS
+
+OK=0
+for id in "$@"; do
+  [ $# -gt 1 ] && printf '\n── %s ──\n' "$id"
+  if answer=$(ask_one "$id" "$QUESTION"); then
+    printf '%s\n' "$answer"
+    OK=$((OK + 1))
+    [ "$DELIVER" = 1 ] && mirror "$id" "$QUESTION" "$answer"
+  else
+    echo "claw: no answer from $id (gateway down or turn failed — try: claw --doctor)" >&2
+  fi
+done
+
+[ "$OK" -gt 0 ]
