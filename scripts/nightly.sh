@@ -79,6 +79,7 @@ run_sensor harvest-downloads  harvest-downloads.sh  300
 run_sensor harvest-github     harvest-github.sh     300
 run_sensor harvest-recordings harvest-recordings.sh 1200
 run_sensor harvest-openclaw   harvest-openclaw.sh   300
+run_sensor harvest-sessions   harvest-sessions.sh   180
 
 "$SANBRAIN/scripts/vault-git.sh" checkpoint "post-sensors" >> "$LOG" 2>&1
 

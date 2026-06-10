@@ -47,8 +47,8 @@ Backlog.
 | Source | Path | Status | Notes |
 |---|---|---|---|
 | Claude Code — local CLI / Conductor | `~/.claude/projects/*.jsonl` | 🟡 | claude-extract nightly. Known compression: sessions >1000 msgs read first 20 + last 200 only. |
-| Claude Code — web/mobile sessions | Anthropic cloud | 🟡 | Transcripts unreachable from the Mac. Work artifacts (commits/PRs) ARE captured via harvest-github. The thinking is lost. |
-| Claude.ai chats | Anthropic cloud | 🟡 | Verbatim is unreachable (no API). Capture path: session-end **"wiki this"** self-summary → paste to Telegram sanbrain topic or raw/ (`setup/llm-session-summary-prompt.md`, ingest Phase 2i, `self-summary` fidelity). Signal over exact data — accepted trade 2026-06-09. Official data export remains the archival backstop. |
+| Claude Code — web/mobile sessions | Anthropic cloud | ✅ | Self-filing contract (CLAUDE.md): every remote session writes `sessions/YYYY-MM-DD-topic.md` and pushes; harvest-sessions.sh extracts sessions/ across ALL remote branches nightly (no merge needed) → raw/. Transcripts stay unreachable; the summary + git artifacts are the record. Same pattern copyable to other repos (taxfree-ai-bot) by adding the CLAUDE.md contract there. |
+| Claude.ai chats | Anthropic cloud | 🟡 | Verbatim is unreachable (no API). Capture path: session-end **"wiki this"** self-summary → paste to Telegram sanbrain topic or raw/ (`setup/llm-session-summary-prompt.md`, ingest Phase 2i, `self-summary` fidelity). Signal over exact data — accepted trade 2026-06-09. Daily 9:30 PM Telegram nudge (nudge-closeout.sh) makes the habit time-bound: paste now, ingested at 10. Official data export remains the archival backstop. |
 | ChatGPT | OpenAI cloud | 🟡 | Same self-summary path. One-time setup: add the prompt to custom instructions. |
 | Grok | xAI cloud | 🟡 | Same self-summary path. |
 | OpenClaw agent conversations | `~/.openclaw/agents/*/sessions/` | ✅ | Nightly digest, VERBATIM; >4000-char messages truncated but counted. Do not add bot-written daily summaries on top — second copy, lower fidelity (agent charter workflow 3 repurposed accordingly). |
