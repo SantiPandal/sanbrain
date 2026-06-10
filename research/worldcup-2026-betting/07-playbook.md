@@ -55,7 +55,7 @@ The betting market is a derivatives market where the closing line at sharp venue
 These came out of the research with structural support. None is a bet until checked against live de-vigged prices and the Phase 2 model.
 
 **Contextual/structural:**
-- Mexico stage markets ("reach QF/SF"): all group games in Mexico, two at the 2,240m Azteca (where Mexico is unbeaten in WC history), R32 also at Azteca, shortest route to the final, host semifinal base rate 57%. Mexico -110 to win Group A has structural support.
+- Mexico, per-market (chapter 13 verdicts): the flagship is **reach R16 at +125** (Azteca R32 vs a third-placer → true ~52–57% vs 44% implied); **group winner cheap at -110 (DK), rich at -140 (FD)** — the El Tri tax is paid at US books, Caliente does NOT shade Mexico shorter; reach QF +280 fair (likely means beating England at altitude); reach SF/final and outright all rich (the host carpet ends with a Miami QF). Five straight games in Mexico if they win the group; zero home games if they finish second.
 - Colombia in Group K: Bogotá-bred squad playing Uzbekistan in Mexico City and DR Congo in Guadalajara — the altitude edge nobody prices outside CONMEBOL qualifiers. Also flagged (SI) as plus-money group-winner value vs Portugal.
 - Spain MD3 caution: Guadalajara altitude trip vs Uruguay — a live spot to fade a -250-style favorite, especially if already qualified and rotating.
 - Unders/slow-tempo lean in open-air afternoon heat games (Miami, KC, Philadelphia, Monterrey); neutral models at full weight only in roofed venues (Dallas/Houston/Atlanta/Vancouver).
