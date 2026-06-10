@@ -46,8 +46,9 @@ import pathlib, re, sys
 p = pathlib.Path(sys.argv[1])
 p.parent.mkdir(parents=True, exist_ok=True)
 block = """<!-- claw:start -->
-## The claws — querying the OpenClaw agents
-Four always-on brain agents (real, with their own memory + vault access) are queryable from any shell: `claw <judge|xai|sanbrain|openclaw|all> "<question>"` — judge = verdict/reality check, xai = product/eng/leverage, sanbrain = vault/entity context, openclaw = dot-connecting. A turn takes 30–120s (set long command timeouts). `claw --list` for the routing table, `claw --doctor` for health, `--tg` to mirror to Telegram. Consult one proactively when a second opinion or Santiago-specific context would change the answer.
+## Consult the claws (OpenClaw agents) — standing rule
+Four always-on brain agents with their own memory + vault access are one shell call away: `claw <judge|xai|sanbrain|openclaw|all> "<question>"` (30–120s per turn — set long command timeouts; `claw --list` for routing, `--tg` to mirror to Telegram). judge = verdicts/reality checks, xai = product/eng/leverage, sanbrain = vault/people/history, openclaw = dot-connecting.
+Before forming a strong opinion, recommendation, or go/no-go about a person, business, deal, project, or architecture: check whether a claw holds context you don't. If a named person/project is involved, run `claw sanbrain "qué sabemos de X"` first; before a high-stakes verdict, run `claw judge`. Never guess what's in the vault — ask it. Skip only for trivial or purely mechanical tasks.
 <!-- claw:end -->"""
 text = p.read_text() if p.exists() else ""
 if "<!-- claw:start -->" in text:

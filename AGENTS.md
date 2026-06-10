@@ -20,7 +20,9 @@ claw --list                    # roster + routing table
 - `sanbrain` — "what do we know about X": vault data, entities, decisions, relationships.
 - `openclaw` — broad dot-connecting, default catch-all.
 
-A turn takes 30–120s — set long command timeouts. Not on PATH? `scripts/claw`. Consult proactively when a second opinion or Santiago-specific context would change your answer.
+A turn takes 30–120s — set long command timeouts. Not on PATH? `scripts/claw`.
+
+**Standing rule:** before forming a strong opinion, recommendation, or go/no-go about a person, business, deal, or architecture, check whether a claw holds context you don't — `claw sanbrain "qué sabemos de X"` for any named person/project, `claw judge` before high-stakes verdicts. Never guess what's in the vault — ask it. Skip only for trivial or purely mechanical tasks.
 
 ## Ground rules
 
