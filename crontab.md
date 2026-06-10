@@ -4,7 +4,7 @@
 
 | When | Script | What |
 |------|--------|------|
-| 9:30 PM | `nudge-closeout.sh` | Telegram nudge: paste LLM session summaries before the run |
+| 9:30 PM | `evening-debrief.sh` | Telegram debrief: 3 questions extracting the day's decisions/ideas + summary-paste reminder |
 | 10 PM | `nightly.sh` | sensors → staged skill chain (4 separate `claude -p` calls) |
 | 7 AM | `morning.sh` | vault-doctor → morning brief |
 | 2 PM, 7 PM | `process-brief-feedback.sh` | propagate Santiago's brief edits (free if brief unchanged) |
@@ -14,7 +14,7 @@
 ```
 SHELL=/bin/zsh
 PATH=/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin
-30 21 * * * $HOME/sanbrain/scripts/nudge-closeout.sh >> $HOME/sanbrain/logs/reminders.log 2>&1
+30 21 * * * $HOME/sanbrain/scripts/evening-debrief.sh >> $HOME/sanbrain/logs/reminders.log 2>&1
 0 22 * * * $HOME/sanbrain/scripts/nightly.sh >> $HOME/sanbrain/logs/nightly.log 2>&1
 0 7 * * * $HOME/sanbrain/scripts/morning.sh >> $HOME/sanbrain/logs/morning.log 2>&1
 0 14,19 * * * $HOME/sanbrain/scripts/process-brief-feedback.sh >> $HOME/sanbrain/logs/brief-feedback.log 2>&1
@@ -58,7 +58,9 @@ Sensors (6 input channels):
   OpenClaw conversations  → harvest-openclaw.sh   → raw/openclaw-conversations-*.md
   Claude Code (local CLI) → ~/.claude/projects/   (read directly by claude-extract)
   Claude Code (web/remote)→ harvest-sessions.sh   → sessions/ on any remote branch → raw/session-*.md
-  Cloud LLM chats         → "wiki this" summary pasted to Telegram or raw/ (9:30 PM nudge)
+  Cloud LLM chats         → "wiki this" summary pasted to Telegram or raw/ (9:30 PM debrief)
+  Santiago's head         → evening-debrief.sh (9:30 PM, 3 questions) → his Telegram replies
+                            (openclaw harvest window covers 21:00 yesterday → midnight today)
   Calendar.app (4 cals)   → schedule-reminders.sh → raw/today-reminders-*.md + Telegram agenda push
 
                         ↓

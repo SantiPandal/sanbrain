@@ -14,6 +14,7 @@
 source "$(dirname "$0")/lib.sh"
 OPENCLAW_DIR="$HOME/.openclaw/agents"
 TODAY=$(date +%Y-%m-%d)
+YESTERDAY=$(date -v-1d +%Y-%m-%d 2>/dev/null || date -d "yesterday" +%Y-%m-%d)
 LOG="$SANBRAIN/logs/openclaw.log"
 OUTPUT="$VAULT/raw/openclaw-conversations-${TODAY}.md"
 
@@ -36,6 +37,7 @@ import json, os, sys, glob
 from datetime import datetime
 
 today = '${TODAY}'
+yesterday = '${YESTERDAY}'
 agents_dir = '${OPENCLAW_DIR}'
 conversations = {}  # key: 'agent:channel' -> list of messages
 
@@ -55,8 +57,17 @@ def extract_messages(filepath, agent_name):
                 if obj.get('type') != 'message':
                     continue
 
+                # Window: all of today PLUS yesterday 21:00 onward. The run
+                # fires at 22:00 — without the late slice, anything said
+                # between 22:00 and midnight (evening-debrief replies live
+                # there) was never captured by any run. Boundary overlap with
+                # yesterday's digest is deduped downstream by ingest.
                 ts = obj.get('timestamp', '')
-                if not ts.startswith(today):
+                if ts.startswith(today):
+                    pass
+                elif ts.startswith(yesterday) and len(ts) >= 13 and ts[11:13] >= '21':
+                    pass
+                else:
                     continue
 
                 msg = obj.get('message', {})
@@ -107,11 +118,11 @@ for agent_dir in sorted(glob.glob(os.path.join(agents_dir, '*', 'sessions'))):
 
     # Current session files
     session_files = glob.glob(os.path.join(agent_dir, '*.jsonl'))
-    # Reset files that might contain today's messages (reset timestamp is today or later)
+    # Reset files that might contain in-window messages (reset today or yesterday)
     reset_files = glob.glob(os.path.join(agent_dir, '*.jsonl.reset.*'))
-    today_resets = [f for f in reset_files if today in f]
+    recent_resets = [f for f in reset_files if today in f or yesterday in f]
 
-    all_files = session_files + today_resets
+    all_files = session_files + recent_resets
 
     for filepath in all_files:
         for msg in extract_messages(filepath, agent_name):

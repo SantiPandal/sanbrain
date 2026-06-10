@@ -179,7 +179,18 @@ blocks into this topic from ChatGPT/Claude.ai/Grok (format:
 3. Never editorialize the summary content — it carries self-summary fidelity
    and ingest treats its framing as unverified.
 
-### 4. Vault Health Checks
+### 4. Evening Debrief (9:30 PM)
+A cron sends Santiago three close-out questions in this topic (decisions
+today, ideas worth keeping, open threads). When he replies:
+1. Ask at most ONE clarifying follow-up — only if an answer is ambiguous or
+   names an entity you don't recognize. This is capture, not conversation.
+2. Acknowledge in one line. The nightly harvest captures this exchange
+   verbatim; do not re-summarize it anywhere.
+3. If a reply contains a clearly urgent item (deadline tomorrow, blocked
+   business), flag it: "marcado para el brief de mañana" and write a one-line
+   `[ATTENTION]` entry to VAULT/log.md.
+
+### 5. Vault Health Checks
 Proactively monitor:
 - Files in raw/ waiting for processing
 - Broken wikilinks (entity mentioned without a page)

@@ -40,7 +40,8 @@ Backlog.
 | Desktop mic shortcut | destination UNKNOWN | ❓ | Run it once, then: `find ~/Downloads ~/Desktop ~/Documents ~/Library/Mobile\ Documents -name '*.m4a' -mmin -10 2>/dev/null`. If it lands outside `Meetings/`, point the shortcut's Save File action at `Meetings/` — zero code needed. If it's dictation-style (text, no file), the contract is: paste the text into a raw/ note or Telegram. |
 | Manual notes | Obsidian → `VAULT/raw/` | ✅ | Works from phone + desktop. |
 | Morning-brief edits | checkboxes/comments in the brief | ✅ | process-brief-feedback (2 PM / 7 PM, mtime-gated). |
-| Telegram messages to the 4 agents | San group topics | ✅ | harvest-openclaw nightly. **Voice notes to bots are NOT captured** (text-only extraction) — speak to the Meetings/ folder instead, or type. |
+| Telegram messages to the 4 agents | San group topics | ✅ | harvest-openclaw nightly, verbatim, window = yesterday 21:00 → today midnight (late-evening hole closed 2026-06-10). **Voice notes to bots are NOT captured** (text-only extraction) — speak to the Meetings/ folder instead, or type. |
+| Evening debrief (head → vault) | 9:30 PM Telegram questions | ✅ | evening-debrief.sh asks 3 close-out questions (decisions, ideas, open threads); replies are a captured agent conversation. sanbrain-admin asks max one follow-up (AGENTS.md workflow 4). Extracts the ideas that never touched any other channel. |
 
 ### AI conversations ("the main inputs of my brain to computer")
 
@@ -48,7 +49,7 @@ Backlog.
 |---|---|---|---|
 | Claude Code — local CLI / Conductor | `~/.claude/projects/*.jsonl` | 🟡 | claude-extract nightly. Known compression: sessions >1000 msgs read first 20 + last 200 only. |
 | Claude Code — web/mobile sessions | Anthropic cloud | ✅ | Self-filing contract (CLAUDE.md): every remote session writes `sessions/YYYY-MM-DD-topic.md` and pushes; harvest-sessions.sh extracts sessions/ across ALL remote branches nightly (no merge needed) → raw/. Transcripts stay unreachable; the summary + git artifacts are the record. Same pattern copyable to other repos (taxfree-ai-bot) by adding the CLAUDE.md contract there. |
-| Claude.ai chats | Anthropic cloud | 🟡 | Verbatim is unreachable (no API). Capture path: session-end **"wiki this"** self-summary → paste to Telegram sanbrain topic or raw/ (`setup/llm-session-summary-prompt.md`, ingest Phase 2i, `self-summary` fidelity). Signal over exact data — accepted trade 2026-06-09. Daily 9:30 PM Telegram nudge (nudge-closeout.sh) makes the habit time-bound: paste now, ingested at 10. Official data export remains the archival backstop. |
+| Claude.ai chats | Anthropic cloud | 🟡 | Verbatim is unreachable (no API). Capture path: session-end **"wiki this"** self-summary → paste to Telegram sanbrain topic or raw/ (`setup/llm-session-summary-prompt.md`, ingest Phase 2i, `self-summary` fidelity). Signal over exact data — accepted trade 2026-06-09. Daily 9:30 PM Telegram debrief (evening-debrief.sh) makes the habit time-bound: paste now, ingested at 10. Official data export remains the archival backstop. |
 | ChatGPT | OpenAI cloud | 🟡 | Same self-summary path. One-time setup: add the prompt to custom instructions. |
 | Grok | xAI cloud | 🟡 | Same self-summary path. |
 | OpenClaw agent conversations | `~/.openclaw/agents/*/sessions/` | ✅ | Nightly digest, VERBATIM; >4000-char messages truncated but counted. Do not add bot-written daily summaries on top — second copy, lower fidelity (agent charter workflow 3 repurposed accordingly). |
