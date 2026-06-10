@@ -10,9 +10,12 @@ STATE_DIR="${STATE_DIR:-$SANBRAIN/.state}"
 HEARTBEAT_DIR="$STATE_DIR/heartbeats"
 CLAUDE="${CLAUDE:-$HOME/.local/bin/claude}"
 
-# Telegram routing (San group, sanbrain topic) — override in ~/.sanbrain.env
+# Telegram routing (San group topics) — override in ~/.sanbrain.env
 TELEGRAM_GROUP="${TELEGRAM_GROUP:--1003637114912}"
 TELEGRAM_SANBRAIN_THREAD="${TELEGRAM_SANBRAIN_THREAD:-34}"
+TELEGRAM_THREAD_OPENCLAW="${TELEGRAM_THREAD_OPENCLAW:-1}"
+TELEGRAM_THREAD_JUDGE="${TELEGRAM_THREAD_JUDGE:-32}"
+TELEGRAM_THREAD_XAI="${TELEGRAM_THREAD_XAI:-36}"
 
 # Secrets and machine-specific overrides live in ~/.sanbrain.env (chmod 600),
 # NOT in .zshrc — cron shells don't reliably read interactive rc files.
@@ -51,15 +54,19 @@ heartbeat() {
     "$name" "$now" "$last_success" "$status" "$detail" > "$HEARTBEAT_DIR/$name.json"
 }
 
-# notify "message" — best-effort push to Santiago (Telegram via openclaw).
-# Loud on failure, silent on success. Never blocks the pipeline.
-notify() {
-  local msg="$1" oc
-  oc=$(command -v openclaw 2>/dev/null) || { log "NOTIFY (openclaw unavailable): $msg"; return 0; }
+# notify_topic <thread_id> <message> — best-effort push to a San group topic
+# (posting in an agent's topic addresses that agent). Loud on failure,
+# silent on success. Never blocks the pipeline.
+notify_topic() {
+  local thread="$1" msg="$2" oc
+  oc=$(command -v openclaw 2>/dev/null) || { log "NOTIFY (openclaw unavailable, thread $thread): $msg"; return 1; }
   timeout 20 "$oc" message send --channel telegram \
-    --target "$TELEGRAM_GROUP" --thread-id "$TELEGRAM_SANBRAIN_THREAD" \
-    --message "$msg" >/dev/null 2>&1 || log "NOTIFY failed: $msg"
+    --target "$TELEGRAM_GROUP" --thread-id "$thread" \
+    --message "$msg" >/dev/null 2>&1 || { log "NOTIFY failed (thread $thread): $msg"; return 1; }
 }
+
+# notify <message> — push to Santiago via the sanbrain topic
+notify() { notify_topic "$TELEGRAM_SANBRAIN_THREAD" "$1"; }
 
 # claude_ok — pre-flight auth check
 claude_ok() {

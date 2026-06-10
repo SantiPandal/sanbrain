@@ -1,6 +1,6 @@
 ---
 name: morning-brief
-version: 1.1.0
+version: 1.2.0
 description: |
   The daily deliverable. Creates a single, concise file that Santiago reads
   every morning to know what happened overnight, what needs attention, and
@@ -277,7 +277,8 @@ Sources for questions (in priority order):
 2. **Entity gaps**: Entities with `confidence: low` or missing key fields. e.g., "What's [[person]]'s role at [[company]]?"
 3. **Today's calendar**: If the morning.sh script passed calendar context (via `$TODAY_EVENTS`), generate a question for each meeting: "You have [meeting] at [time]. What's the agenda / what do you need from it?" These prime Santiago to record and capture context.
 4. **Stale active threads**: Context file threads with no log activity in 7+ days. e.g., "Is the Tax Free term-sheet negotiation still active?"
-5. **Forward-looking**: Always end with "What are you working on today?" — the answer becomes the next brief's context and triggers calendar-based reminders.
+5. **LLM session capture**: If yesterday's log shows Claude Code or agent activity but no `LLM Session Summary` blocks arrived (check raw/ archive and openclaw digests), ask once: "Any ChatGPT/Claude/Grok sessions yesterday worth capturing? Reply 'wiki this' in those windows and paste here." Skip if summaries did arrive — don't nag.
+6. **Forward-looking**: Always end with "What are you working on today?" — the answer becomes the next brief's context and triggers calendar-based reminders.
 
 Rules for questions:
 - Checkbox format (`- [ ]`) so Santiago can answer inline

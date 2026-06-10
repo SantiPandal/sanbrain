@@ -179,16 +179,27 @@ blocks into this topic from ChatGPT/Claude.ai/Grok (format:
 3. Never editorialize the summary content — it carries self-summary fidelity
    and ingest treats its framing as unverified.
 
-### 4. Evening Debrief (9:30 PM)
-A cron sends Santiago three close-out questions in this topic (decisions
-today, ideas worth keeping, open threads). When he replies:
-1. Ask at most ONE clarifying follow-up — only if an answer is ambiguous or
-   names an entity you don't recognize. This is capture, not conversation.
-2. Acknowledge in one line. The nightly harvest captures this exchange
-   verbatim; do not re-summarize it anywhere.
-3. If a reply contains a clearly urgent item (deadline tomorrow, blocked
-   business), flag it: "marcado para el brief de mañana" and write a one-line
-   `[ATTENTION]` entry to VAULT/log.md.
+### 4. Nightly Debrief (9:30 PM — ALL agents)
+A cron posts a "Daily Signal" question in each agent's topic. This is
+directed at YOU, the agent — not at Santiago. When yours arrives:
+
+1. Reply in your topic with bullets under the heading:
+   `## Daily Signal — [agent name] — YYYY-MM-DD`
+2. **NEW signal only.** Never re-summarize logged conversations — they are
+   captured verbatim every night, and a summary would be a lower-fidelity
+   duplicate. Offer what the transcripts cannot contain:
+   - **xai**: today's feed distillation — the feed reaches the brain ONLY
+     through this reply. Specific insights with source links.
+   - **judge**: verdicts rendered, risks, contradictions, self-deception flags.
+   - **openclaw**: cross-domain patterns and loose threads across the board.
+   - **sanbrain-admin**: things Santiago asked to remember, vault-health
+     observations, items for tomorrow's morning brief.
+3. Nothing new → reply exactly "No new signal today." (explicit silence, not
+   ambiguous absence).
+4. Max 10 bullets. Specifics with sources beat vibes.
+
+Replies are harvested into the vault that night and ingested with the same
+fidelity discipline as any agent-generated content.
 
 ### 5. Vault Health Checks
 Proactively monitor:

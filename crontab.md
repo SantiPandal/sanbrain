@@ -4,7 +4,7 @@
 
 | When | Script | What |
 |------|--------|------|
-| 9:30 PM | `evening-debrief.sh` | Telegram debrief: 3 questions extracting the day's decisions/ideas + summary-paste reminder |
+| 9:30 PM | `evening-debrief.sh` | "Daily Signal" question to each AI agent's topic — agents reply with new signal (feed, verdicts, observations) before the 10 PM harvest |
 | 10 PM | `nightly.sh` | sensors → staged skill chain (4 separate `claude -p` calls) |
 | 7 AM | `morning.sh` | vault-doctor → morning brief |
 | 2 PM, 7 PM | `process-brief-feedback.sh` | propagate Santiago's brief edits (free if brief unchanged) |
@@ -58,9 +58,11 @@ Sensors (6 input channels):
   OpenClaw conversations  → harvest-openclaw.sh   → raw/openclaw-conversations-*.md
   Claude Code (local CLI) → ~/.claude/projects/   (read directly by claude-extract)
   Claude Code (web/remote)→ harvest-sessions.sh   → sessions/ on any remote branch → raw/session-*.md
-  Cloud LLM chats         → "wiki this" summary pasted to Telegram or raw/ (9:30 PM debrief)
-  Santiago's head         → evening-debrief.sh (9:30 PM, 3 questions) → his Telegram replies
-                            (openclaw harvest window covers 21:00 yesterday → midnight today)
+  Cloud LLM chats         → "wiki this" summary pasted to Telegram or raw/ (morning brief asks if missing)
+  Agent vantage points    → evening-debrief.sh (9:30 PM) asks each agent for Daily Signal
+                            (xai feed distillation, judge verdicts, observations) → replies
+                            captured by openclaw harvest (window: 21:00 yesterday → midnight today)
+  Santiago's head         → morning brief Questions section (he answers in the morning)
   Calendar.app (4 cals)   → schedule-reminders.sh → raw/today-reminders-*.md + Telegram agenda push
 
                         ↓
