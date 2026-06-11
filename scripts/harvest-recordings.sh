@@ -18,6 +18,11 @@
 
 source "$(dirname "$0")/lib.sh"
 MEETINGS="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Meetings"
+# Second source: the ⌘⇧R voice-memo hotkey (scripts/voice-memo) records here.
+# It transcribes + delivers immediately; this nightly pass is the safety net
+# for anything that failed mid-pipeline (no API key, whisper error, >25MB).
+# The shared transcript naming + delivered-list make re-delivery impossible.
+HOTKEY_RECORDINGS="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Recordings"
 TRANSCRIPTS="$HOME/transcripts"
 TODAY=$(date +%Y-%m-%d)
 LOG="$SANBRAIN/logs/recordings.log"
@@ -74,17 +79,7 @@ extract_date() {
   fi
 }
 
-# ── Helper: transcribe one audio file (stdout = transcript) ─────
-whisper_one() {
-  python3 -c "
-from openai import OpenAI
-import sys
-client = OpenAI()
-with open(sys.argv[1], 'rb') as f:
-    text = client.audio.transcriptions.create(model='whisper-1', file=f, response_format='text')
-print(text, end='')
-" "$1" 2>>"$LOG"
-}
+# Transcription: whisper_file from lib.sh (stdout = transcript, errors → $LOG)
 
 # ── Helper: transcribe with chunking for >25MB files ────────────
 transcribe_file() { # audio_path out_txt
@@ -93,7 +88,7 @@ transcribe_file() { # audio_path out_txt
   fsize=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null)
 
   if [ "${fsize:-0}" -le "$MAX_SIZE" ]; then
-    whisper_one "$f" > "$out"
+    whisper_file "$f" > "$out"
     [ -s "$out" ] && return 0
     rm -f "$out"; return 1
   fi
@@ -114,7 +109,7 @@ transcribe_file() { # audio_path out_txt
   local chunk ok=true
   for chunk in "$tmpdir"/chunk-*.m4a; do
     [ -e "$chunk" ] || continue
-    if ! whisper_one "$chunk" >> "$out.tmp"; then
+    if ! whisper_file "$chunk" >> "$out.tmp"; then
       ok=false; break
     fi
     printf '\n' >> "$out.tmp"
@@ -127,10 +122,20 @@ transcribe_file() { # audio_path out_txt
 }
 
 # ── Phase 1: Transcribe new .m4a files (chunked when needed) ────
+# Sanity cap: a runaway recording once hit 3.7GB (3 days of mic). Chunking
+# that would burn ~$25 of Whisper on room noise — skip and flag instead.
+SANITY_MAX=$((300 * 1024 * 1024))
+
 while IFS= read -r -d '' f; do
   base=$(basename "$f")
   txt_name=$(transcript_name "$base")
   [ -f "$TRANSCRIPTS/$txt_name" ] && continue
+
+  fsize=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null)
+  if [ "${fsize:-0}" -gt "$SANITY_MAX" ]; then
+    log "GAP: $base is $(( fsize / 1048576 ))MB (>300MB sanity cap) — runaway recording? Skipping; transcribe manually if it matters."
+    continue
+  fi
 
   log "Transcribing: $base → $txt_name"
   transcribe_file "$f" "$TRANSCRIPTS/$txt_name"
@@ -142,7 +147,7 @@ while IFS= read -r -d '' f; do
     FAILED=$((FAILED + 1))
     log "FAIL: $base (rc=$rc)"
   fi
-done < <(find "$MEETINGS" -maxdepth 1 -name "*.m4a" -type f -print0 2>/dev/null)
+done < <(find "$MEETINGS" "$HOTKEY_RECORDINGS" -maxdepth 1 -name "*.m4a" -type f -print0 2>/dev/null)
 
 # ── Phase 2: Copy Apple summary .txt files (marked as summaries) ─
 # These are AI-generated summaries, NOT verbatim transcripts. They are kept

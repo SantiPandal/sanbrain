@@ -1,6 +1,6 @@
 ---
 name: morning-brief
-version: 1.1.0
+version: 1.2.0
 description: |
   The daily deliverable. Creates a single, concise file that Santiago reads
   every morning to know what happened overnight, what needs attention, and
@@ -55,7 +55,22 @@ CRITICAL_FACTS="$VAULT_PATH/CRITICAL_FACTS.md"
 
 ## Output Format
 
-The brief is written to `wiki/daily/YYYY-MM-DD-brief.md`:
+The brief is written to `wiki/daily/YYYY-MM-DD-brief.md`.
+
+Design intent: Santiago reads this on his desktop in Obsidian every morning. The
+top of the file is what he must read (one screen: headline, questions, attention).
+Everything below the fold is reference, collapsed by default. Obsidian callouts
+render as colored cards; the `cssclasses: daily-brief` frontmatter activates the
+report stylesheet (`.obsidian/snippets/sanbrain-brief.css`).
+
+Rules that make the layout work:
+- Checkboxes inside callouts (`> - [ ]`) are still clickable in reading view — use them.
+- Folded callouts end the title line with `-` (e.g. `> [!note]- Qué cambió anoche`).
+- The Downloads pending-deletion section must stay a PLAIN `###` heading with plain
+  `- [ ] **name**` checkboxes, OUTSIDE any callout — the deletion script parses
+  raw line starts and `> `-prefixed lines are invisible to it.
+- Questions are numbered **Q1.**–**Q5.** so Santiago can answer them by voice
+  ("Q1 sí, Q2 ...") while recording inside the note.
 
 ```markdown
 ---
@@ -64,98 +79,92 @@ date: YYYY-MM-DD
 generated: YYYY-MM-DDTHH:MM:SS
 previous_brief: YYYY-MM-DD
 changes_since: YYYY-MM-DDTHH:MM:SS
+cssclasses: daily-brief
 ---
 ## For future Claude
 Daily brief for Santiago. Contains all vault changes since the last brief,
 new connections surfaced by the system, and items requiring human review.
 Read this to understand the current state of the knowledge system.
 
-# [Day of week], [Month DD, YYYY] -- Morning Brief
+# [Day of week], [Month DD, YYYY]
 
-## What Changed Overnight
-[Bullet list of every page created or updated since last brief, grouped by category]
+> [!danger] Headline
+> [The ONE thing. 2-4 sentences: what changed, why it matters, the single move
+> it implies today. If nothing rises to headline level, state the day's center
+> of gravity instead. Never more than one paragraph.]
 
-### New Pages
-- [[wiki/entities/person-name]] -- [one-line: who and why created]
-- [[wiki/concepts/concept-name]] -- [one-line: what it captures]
+> [!question]+ Preguntas — responde por voz
+> *Pulsa ⌘⇧R, habla mientras lees ("Q1: ..., Q2: ..."), vuelve a pulsar para
+> parar. El sistema transcribe, responde y propaga. También puedes contestar
+> por escrito debajo de cada pregunta.*
+>
+> - [ ] **Q1.** [most time-sensitive question]
+> - [ ] **Q2.** [question]
+> - [ ] **Q3.** [question]
+> - [ ] **Q4.** [question]
+> - [ ] **Q5.** [forward-looking: what are you working on today?]
 
-### New Ideas Captured
-- [[wiki/ideas/idea-slug]] -- [one-line summary, domain]
+> [!warning] Atención
+> - [ ] [max 5 items, most time-sensitive first. Each states what Santiago
+>   needs to DO. Overflow goes into the folded "Qué cambió anoche" card.]
 
-### Updated Pages
-- [[wiki/entities/person-name]] -- [what changed: new timeline entry, compiled truth rewrite, enrichment]
-- [[wiki/projects/project-name]] -- [what changed: new decision, status update]
-- [[wiki/context/business.md]] -- context rewritten
+### Downloads — pending deletion approval
+[ONLY when a recent downloads-manifest exists. Copy its One-Way Doors checkboxes
+verbatim — `- [ ] **name** (size, date)` — plain markdown, no callout, names
+unaltered. The deletion script validates these mechanically.]
 
-### Context Files Rewritten
-- [[wiki/context/pala-padel.md]] -- [key change summary]
+## Threads
+| Negocio | Thread más importante |
+|---|---|
+| [Business] | [single most important open item, one line] |
+| [Business] | [...] |
+| Personal | [...] |
 
-### Ingested Files
-- [filename] ([type]) -- processed and archived. Key output: [summary]
+> [!tip] Conexiones
+> 1. **[connection title]** — [why it matters, 1-2 sentences. Max 3. If none
+>    today: "No significant new connections today."]
 
-## New Connections
-[Non-obvious links between recent inputs and existing knowledge. These should
-be genuine insights, not mechanical "X was mentioned in Y" observations.]
+> [!example]- Idea Bank
+> [Only when a parked idea connects to today's context — omit the card entirely
+> otherwise. Max 3, each with WHY it's relevant today.]
 
-- [connection 1: explain the link and why it matters]
-- [connection 2]
+> [!note]- Qué cambió anoche
+> **New pages**
+> - [[wiki/entities/person-name]] — [one-line: who and why created]
+>
+> **Updated pages**
+> - [[wiki/entities/person-name]] — [what changed]
+>
+> **Context files rewritten**
+> - [[wiki/context/business]] — [key change summary]
+>
+> **Ingested files**
+> - [filename] ([type]) — processed and archived. Key output: [summary]
 
-## Attention Required
-- [ ] [item needing Santiago's review or decision -- be specific about what action is needed]
-- [ ] [contradiction flagged during ingest: "[old claim]" vs "[new claim]" on [[page]] -- confirm which is correct]
-- [ ] [proposed entity merge: [[entity-a]] and [[entity-b]] may be duplicates -- confirm or reject]
-- [ ] [stale context: [[page]] has not been updated in N days -- still accurate?]
+> [!abstract]- Vault health
+> | Métrica | Valor |
+> |---|---|
+> | Total pages | [N] |
+> | Entities | [N] ([N] people, [N] businesses) |
+> | Concepts / Ideas / Projects | [N] / [N] / [N] |
+> | Created / updated since last brief | [N] / [N] |
+> | Stale 30+ days | [N] |
+> | Orphans | [N] |
+> | Context files | [N], last refresh [date] |
+>
+> [Anomalies do NOT live here — promote them to Atención. Link today's
+> doctor report.]
 
-## Active Threads Across All Businesses
-[Aggregated from context files -- the top open items across all of Santiago's work]
-
-### Pala Padel
-- [most important active thread]
-
-### Tax Free
-- [most important active thread]
-
-### Personal
-- [most important personal thread]
-
-## Idea Bank
-[Surface parked ideas when they connect to today's context — a recent decision,
-a new connection, or an active thread that an idea could solve. Do NOT list all
-parked ideas every day. Only surface an idea when there's a reason to recall it.]
-
-- [[wiki/ideas/idea-slug]] -- [why it's relevant today: connects to active thread X, related to yesterday's decision about Y]
-
-[If no ideas are relevant today, omit this section entirely.]
-
-## Questions for Santiago
-[3-5 questions the brief is asking Santiago to answer. These prompt him to provide
-context that feeds back into the system via Phase 0.5. Each question should be
-specific, not generic — derived from real gaps in the vault.]
-
-- [ ] [question about an open thread where the vault lacks a recent status update]
-- [ ] [question about an entity whose compiled truth has an unresolved ambiguity]
-- [ ] [question about today's calendar — "You have [meeting] at [time]. What's the goal / what do you need from it?" One per meeting, max 2.]
-- [ ] [question about a stale attention item that's been carried 2+ briefs]
-- [ ] [forward-looking question: "What are you working on today?" — the answer becomes tomorrow's context]
-
-## Review
-Edit this file directly in Obsidian:
-- Check `[x]` any resolved attention items or answered questions
-- Add inline comments below any item that needs context
-- Write free text anywhere — the system reads every edit
-
-## Vault Health
-- Total pages: [N]
-- Entities: [N] people, [N] businesses
-- Concepts: [N]
-- Ideas: [N] parked, [N] exploring
-- Projects: [N]
-- Pages created since last brief: [N]
-- Pages updated since last brief: [N]
-- Stale pages (30+ days untouched): [N] [list top 5 if any]
-- Orphan pages (no inbound wikilinks): [N] [list all if <10, top 5 if more]
-- Context files: [N], last full refresh: [date]
+---
+🎙️ *Feedback: ⌘⇧R (funciona en cualquier app — un toque graba, otro termina)
+y habla mientras lees, o edita este archivo directamente. El sistema transcribe,
+te avisa por Telegram, y las respuestas aparecen abajo en minutos.*
 ```
+
+The feedback processor (not this skill) appends a `## Respuestas` section at the
+end of the file when Santiago's voice recording or written edits are processed.
+Never generate, move, or delete that section — and never touch audio embed lines
+(`![[Recording ....webm]]`) when re-running on the same day.
 
 ## Phases
 
@@ -171,14 +180,22 @@ Edit this file directly in Obsidian:
 
 ### Phase 0.5: Read Previous Brief Feedback
 
-If a previous brief exists, read it fully and scan the `## Attention Required` section:
+If a previous brief exists, read it fully. Feedback lives in the Atención and
+Preguntas callouts (lines are `> `-prefixed inside callouts) and anywhere else
+Santiago wrote:
 
-1. **Checked items** (`- [x]`): Santiago resolved these. Do NOT carry them forward. If the item has an inline comment or a line below it, treat that as Santiago's decision — propagate it to the relevant entity/context page if it changes compiled truth (e.g., "CONFIRMED ARCHIVED" should update the entity's status).
+1. **Checked items** (`- [x]` or `> - [x]`): Santiago resolved these. Do NOT carry them forward. If the item has an inline comment or a line below it, treat that as Santiago's decision — propagate it to the relevant entity/context page if it changes compiled truth (e.g., "CONFIRMED ARCHIVED" should update the entity's status).
 2. **Unchecked items** (`- [ ]`) with added comments: Santiago acknowledged but hasn't resolved. Carry forward WITH his comment as context.
 3. **Unchecked items with no comment**: Still unresolved. Carry forward as-is. If carried for 3+ briefs, escalate to top of attention list with "STALE — open since [date]".
 4. **Any free-text Santiago added** anywhere in the brief (below sections, inline notes): Treat as input. If it contains a decision, entity update, or new information, flag it for context-maintain or entity-update propagation.
+5. **`## Respuestas` section and answers written under questions**: These were
+   produced by the feedback processor (from Santiago's voice recording or edits)
+   and were ALREADY propagated when written. Read them as context — they tell you
+   which questions were answered and what was decided — but do not re-propagate.
+6. **Audio embeds** (`![[Recording ....webm]]`): already transcribed and processed
+   by the feedback processor. Ignore; never delete them.
 
-This is Santiago's primary feedback mechanism. The brief is a living document he edits in Obsidian — respect every edit.
+This is Santiago's primary feedback mechanism. The brief is a living document he edits in Obsidian (by voice or by typing) — respect every edit.
 
 ### Phase 1: Inventory Changes
 
@@ -258,12 +275,20 @@ Aggregate all items requiring Santiago's review or decision:
 
 Each attention item must be actionable: state what Santiago needs to DO, not just what happened.
 
+The Atención card shows at most 5 items, most time-sensitive first. Overflow
+items go into the folded "Qué cambió anoche" card with a count noted in Atención
+("+N more in the changes card"). The Downloads pending-deletion section is
+exempt from the cap — it is always rendered in full, as a plain section.
+
 ### Phase 5: Aggregate Active Threads
 
 Read all `wiki/context/` files. For each business and personal context:
 1. Pull the `## Active Threads` section.
 2. Select the single most important thread per subject.
 3. If a context file is stale (not rewritten in 7+ days), note it.
+
+Render as the `## Threads` table — one row per business, one line per thread.
+A table scans in seconds on desktop; do not let a thread wrap past ~2 lines.
 
 This gives Santiago a one-screen view of what's in motion across his entire world.
 
@@ -280,7 +305,11 @@ Sources for questions (in priority order):
 5. **Forward-looking**: Always end with "What are you working on today?" — the answer becomes the next brief's context and triggers calendar-based reminders.
 
 Rules for questions:
-- Checkbox format (`- [ ]`) so Santiago can answer inline
+- Numbered checkbox format inside the Preguntas callout: `> - [ ] **Q1.** [question]`.
+  The numbers are the voice-answering protocol — Santiago records himself saying
+  "Q1: sí. Q2: ..." while reading, so Q1–Q5 must be stable, in display order.
+- Each question must be answerable in one spoken sentence. If it needs a
+  paragraph, it's an attention item, not a question.
 - Specific, not generic. "How's business?" is worthless. "Did the Mario meeting happen?" is useful.
 - Maximum 5 questions. If more exist, pick the most time-sensitive.
 - One question per attention item max — don't duplicate the attention section.
@@ -314,10 +343,12 @@ Only if no doctor report exists, fall back to scanning the vault yourself:
 ### Phase 7: Write the Brief
 
 1. Check if `wiki/daily/YYYY-MM-DD-brief.md` already exists for today.
-   - If yes: this is a re-run. Overwrite the file entirely (idempotent).
+   - If yes: this is a re-run. Regenerate the brief BUT preserve verbatim:
+     any `## Respuestas` section, any audio embed lines (`![[Recording ...]]`),
+     and any edits Santiago already made today (checked boxes, inline answers).
    - If no: create the file.
 2. Populate every section of the output format using data from Phases 1-6.
-3. Set frontmatter fields: `date`, `generated` (current timestamp), `previous_brief` (date of the last brief), `changes_since` (the `since_timestamp` from Phase 0).
+3. Set frontmatter fields: `date`, `generated` (current timestamp), `previous_brief` (date of the last brief), `changes_since` (the `since_timestamp` from Phase 0). Always include `cssclasses: daily-brief`.
 
 ### Phase 8: Log
 
@@ -328,7 +359,9 @@ Only if no doctor report exists, fall back to scanning the vault yourself:
 ## Idempotency
 
 Running twice on the same day produces the same result because:
-1. The brief file is fully overwritten (not appended).
+1. The generated sections are fully regenerated (Santiago's same-day input —
+   checked boxes, inline answers, audio embeds, `## Respuestas` — is preserved
+   verbatim, never regenerated).
 2. The time window is determined by the PREVIOUS brief, not the current one being written.
 3. All data is re-read fresh from source pages and logs.
 4. Vault health metrics are recomputed each time.
