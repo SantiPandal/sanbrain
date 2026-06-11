@@ -1,0 +1,115 @@
+/* Sanbrain morning brief — report layout.
+ * Installed by scripts/install-brief-style.sh into
+ * $VAULT/.obsidian/snippets/sanbrain-brief.css and enabled in appearance.json.
+ * Scoped to notes with `cssclasses: daily-brief` — touches nothing else.
+ * Desktop-first: Santiago reads the brief on his main computer. */
+
+/* ── Page ──────────────────────────────────────────────────────── */
+.daily-brief {
+  --file-line-width: 780px;
+  font-size: 1.05em;
+  line-height: 1.55;
+}
+
+.daily-brief .inline-title,
+.daily-brief.markdown-preview-view h1,
+.daily-brief h1 {
+  font-size: 2.1em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  border-bottom: 2px solid var(--background-modifier-border);
+  padding-bottom: 0.25em;
+  margin-bottom: 0.6em;
+}
+
+.daily-brief h2 {
+  font-size: 0.85em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 2em;
+}
+
+/* ── Callout cards ─────────────────────────────────────────────── */
+.daily-brief .callout {
+  border-radius: 10px;
+  padding: 0.9em 1.2em;
+  margin: 1.1em 0;
+  border: 1px solid rgba(var(--callout-color), 0.35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
+}
+
+.daily-brief .callout-title {
+  font-size: 0.78em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding-bottom: 0.3em;
+}
+
+.daily-brief .callout-content {
+  font-size: 0.95em;
+}
+
+/* Headline card reads like a lede, not a list */
+.daily-brief .callout[data-callout="danger"] .callout-content {
+  font-size: 1.08em;
+  line-height: 1.6;
+}
+
+/* ── Checkboxes (questions + attention) ────────────────────────── */
+.daily-brief input[type="checkbox"] {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.daily-brief .task-list-item {
+  margin: 0.45em 0;
+}
+
+.daily-brief .task-list-item.is-checked {
+  color: var(--text-faint);
+}
+
+/* ── Threads + vault health tables ─────────────────────────────── */
+.daily-brief table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.daily-brief th {
+  text-align: left;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--background-modifier-border);
+  padding: 0.4em 0.8em;
+}
+
+.daily-brief td {
+  padding: 0.55em 0.8em;
+  border-bottom: 1px solid var(--background-modifier-border);
+  vertical-align: top;
+}
+
+.daily-brief tr:nth-child(even) td {
+  background: var(--background-secondary);
+}
+
+/* First column (business names) stays compact and bold */
+.daily-brief td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Footer hint ───────────────────────────────────────────────── */
+.daily-brief hr {
+  margin-top: 2.5em;
+}
+
+.daily-brief hr + p {
+  font-size: 0.85em;
+  color: var(--text-muted);
+}

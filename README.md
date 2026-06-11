@@ -7,7 +7,7 @@ Inspired by [GBrain](https://github.com/garrytan/gbrain). Stripped to the minimu
 ## Architecture
 
 ```
-crontab (Mac mini, always-on)
+launchd (Mac mini, always-on)
   | thin prompts
   v
 Harness (OpenClaw / Claude CLI / any LLM agent)
@@ -57,8 +57,8 @@ chmod +x setup/create-vault-folders.sh
 
 # 2. Write your identity files (see setup/seed-identity.md)
 
-# 3. Install cron jobs
-crontab crontab.example  # edit paths first
+# 3. Install launchd jobs (see crontab.md for details)
+bash scripts/install-launchd.sh
 
 # 4. Configure your harness (OpenClaw, Claude CLI, etc.)
 ```

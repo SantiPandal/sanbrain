@@ -53,17 +53,48 @@ heartbeat() {
 
 # notify "message" — best-effort push to Santiago (Telegram via openclaw).
 # Loud on failure, silent on success. Never blocks the pipeline.
+# SANBRAIN_NO_NOTIFY=1 suppresses sends (tests/dry runs) — message goes to log.
+# Empty TELEGRAM_SANBRAIN_THREAD = DM target (no topic threads in DMs).
+# Errors are captured to the log — "failed silently" is not a thing here.
 notify() {
   local msg="$1" oc
+  [ -n "$SANBRAIN_NO_NOTIFY" ] && { log "NOTIFY (suppressed): $msg"; return 0; }
   oc=$(command -v openclaw 2>/dev/null) || { log "NOTIFY (openclaw unavailable): $msg"; return 0; }
-  timeout 20 "$oc" message send --channel telegram \
-    --target "$TELEGRAM_GROUP" --thread-id "$TELEGRAM_SANBRAIN_THREAD" \
-    --message "$msg" >/dev/null 2>&1 || log "NOTIFY failed: $msg"
+  local args=(message send --channel telegram --target "$TELEGRAM_GROUP" --message "$msg")
+  [ -n "$TELEGRAM_SANBRAIN_THREAD" ] && args+=(--thread-id "$TELEGRAM_SANBRAIN_THREAD")
+  timeout 20 "$oc" "${args[@]}" >/dev/null 2>>"${LOG:-$SANBRAIN/logs/sanbrain.log}" \
+    || log "NOTIFY failed: $msg"
+}
+
+# notify_once <key> <message> — like notify, but at most once per day per key.
+# For persistent error conditions checked on every poll (missing API key,
+# broken permissions): alert daily, don't spam every few minutes.
+notify_once() {
+  local key="$1" msg="$2" marker
+  marker="$STATE_DIR/notified-$key"
+  [ "$(cat "$marker" 2>/dev/null)" = "$(date +%Y-%m-%d)" ] && return 0
+  date +%Y-%m-%d > "$marker"
+  notify "$msg"
 }
 
 # claude_ok — pre-flight auth check
 claude_ok() {
   "$CLAUDE" auth status 2>&1 | grep -q '"loggedIn": true'
+}
+
+# whisper_file <audio_path> — transcribe via OpenAI Whisper, transcript on
+# stdout. Requires OPENAI_API_KEY (from ~/.sanbrain.env). Empty stdout means
+# failure; errors land in $LOG. Caller handles the 25MB API limit (chunking
+# lives in harvest-recordings.sh, the only place long recordings arrive).
+whisper_file() {
+  python3 -c "
+from openai import OpenAI
+import sys
+client = OpenAI()
+with open(sys.argv[1], 'rb') as f:
+    text = client.audio.transcriptions.create(model='whisper-1', file=f, response_format='text')
+print(text, end='')
+" "$1" 2>>"${LOG:-$SANBRAIN/logs/sanbrain.log}"
 }
 
 # state_get/state_set <key> — machine-written checkpoints (ISO timestamps).

@@ -185,7 +185,7 @@ Page templates at `~/sanbrain/templates/`:
 ## Architecture
 
 ```
-crontab (Mac mini, always-on)
+launchd (Mac mini, always-on)
   → shell scripts (~/sanbrain/scripts/)
     → claude -p (Claude Code CLI in prompt mode)
       → reads CONTEXT.md + SKILL.md
@@ -194,7 +194,9 @@ crontab (Mac mini, always-on)
 ```
 
 Claude Code sessions (manual, interactive) are separate from this system.
-This system runs autonomously via cron. No human in the loop except morning review.
+This system runs autonomously via launchd (scripts/install-launchd.sh;
+see crontab.md). No human in the loop except morning review — and the brief
+feedback loop, where Santiago answers by voice (⌘⇧R) or written edits.
 
 ---
 
@@ -208,7 +210,7 @@ This system runs autonomously via cron. No human in the loop except morning revi
 | Conventions | `~/sanbrain/skills/conventions/{quality,vault-schema,entity-rules}.md` |
 | Templates | `~/sanbrain/templates/{person,business,meeting,mirror,daily}.md` |
 | Wrapper scripts | `~/sanbrain/scripts/{ingest,claude-extract,entity-update,context-maintain,morning-brief}.sh` |
-| Crontab | `~/sanbrain/crontab.example` |
+| Scheduling (launchd) | `~/sanbrain/crontab.md` + `scripts/install-launchd.sh` |
 | Resolver | `~/sanbrain/RESOLVER.md` |
 | Obsidian vault | `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT/` |
 | Claude Code sessions | `~/.claude/projects/` |

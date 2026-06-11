@@ -48,6 +48,13 @@ if [ "$NIGHTLY_RAN" = false ]; then
   echo "$(ts) Nightly recovery complete" >> "$LOG"
 fi
 
+# ── Phase 0: ensure user-facing pieces are installed (idempotent) ──
+# Brief stylesheet + Obsidian audio recorder, and the ⌘⇧R voice-memo hotkey
+# (skhd binding + ~/.local/bin script). Self-deploying: repo changes land here
+# on the next morning run.
+"$SANBRAIN/scripts/install-brief-style.sh" >> "$LOG" 2>&1 || true
+"$SANBRAIN/scripts/install-voice-memo.sh" >> "$LOG" 2>&1 || true
+
 # ── Phase A: today's calendar events (also schedules reminders) ──
 TODAY_EVENTS=$("$SANBRAIN/scripts/schedule-reminders.sh" 2>/dev/null)
 CALENDAR_CONTEXT=""

@@ -1,0 +1,466 @@
+#!/usr/bin/env bash
+# Sanbrain: voice-memo — global mic recording with immediate transcription.
+#
+# Trigger: ⌘⇧R anywhere (skhd binding, installed by install-voice-memo.sh).
+# First press starts recording, second press finishes. What happens then:
+#   1. Whisper transcribes immediately (no waiting for the 22:00 harvest)
+#   2. Transcript delivered to the vault as raw/voice-<slug>.md (nightly ingest)
+#   3. Copy queued for the brief-feedback processor, watcher kickstarted —
+#      if the memo answers the brief, Respuestas + propagation follow in minutes
+#   4. Feedback at every step: macOS notification + Telegram ping; failures are
+#      LOUD (notification + ⚠️ Telegram), never silent
+#
+# History this design corrects (found 2026-06-10):
+#   - the old hotkey listener was a custom event-tap binary that lost
+#     Accessibility permission and crash-looped for days — skhd already holds
+#     that permission, so the binding lives there now
+#   - a recording once ran 3 days / 3.7GB because nothing capped it — ffmpeg
+#     now stops at MAX_SECONDS and a watcher finalizes even if ffmpeg dies
+#   - recordings landed in CloudDocs/Recordings/ which NOTHING transcribed —
+#     transcription now happens at finish, and harvest-recordings.sh scans
+#     Recordings/ nightly as the safety net
+#
+# Self-contained on purpose: sources only ~/.sanbrain.env (secrets), not
+# lib.sh — this must keep working regardless of ~/sanbrain deploy state.
+#
+# Usage: voice-memo [toggle-finish|start|pause|resume|finish|toggle-pause|menu|status|process <file>]
+set -uo pipefail
+
+STATE_DIR="$HOME/.voice-memo"
+PID_FILE="$STATE_DIR/ffmpeg.pid"
+STATE_FILE="$STATE_DIR/state"
+CURRENT_FILE="$STATE_DIR/current-file"
+LOG_FILE="$STATE_DIR/voice-memo.log"
+FFMPEG_LOG="$STATE_DIR/ffmpeg.log"
+RECORDINGS_DIR="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Recordings"
+VAULT="${VAULT:-$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/VAULT}"
+SANBRAIN="${SANBRAIN:-$HOME/sanbrain}"
+TRANSCRIPTS="$HOME/transcripts"
+DELIVERED_LIST="$SANBRAIN/.state/delivered-recordings.list"
+QUEUE_DIR="$SANBRAIN/.state/brief-voice-queue"
+FFMPEG="/opt/homebrew/bin/ffmpeg"
+AUDIO_DEVICE="${VOICE_MEMO_AUDIO_DEVICE:-:0}"
+MAX_SECONDS="${VOICE_MEMO_MAX_SECONDS:-7200}"   # hard cap: 2h, never a 3-day mic again
+MAX_SIZE=$((25 * 1024 * 1024))                  # Whisper API limit
+
+# Telegram routing (sanbrain topic) — overridable in ~/.sanbrain.env
+TELEGRAM_GROUP="${TELEGRAM_GROUP:--1003637114912}"
+TELEGRAM_SANBRAIN_THREAD="${TELEGRAM_SANBRAIN_THREAD:-34}"
+[ -f "$HOME/.sanbrain.env" ] && . "$HOME/.sanbrain.env"
+PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+for _nvm_bin in "$HOME/.nvm/versions/node"/*/bin; do
+  [ -d "$_nvm_bin" ] && PATH="$_nvm_bin:$PATH"
+done
+export PATH
+
+mkdir -p "$STATE_DIR" "$RECORDINGS_DIR" "$TRANSCRIPTS" "$(dirname "$DELIVERED_LIST")" "$QUEUE_DIR"
+
+ts() { date +%Y-%m-%dT%H:%M:%S; }
+log() { echo "$(ts) $1" >> "$LOG_FILE"; }
+
+# chime <Sound> — audible feedback, the primary "did it work" signal.
+# Tink=started, Pop=stopped, Glass=transcribed+delivered, Basso=failure.
+chime() {
+  ( /usr/bin/afplay "/System/Library/Sounds/$1.aiff" >/dev/null 2>&1 & ) 2>/dev/null
+}
+
+notify() {  # macOS banner — secondary to the chime
+  /usr/bin/osascript -e "display notification \"$1\" with title \"Voice Memo\"" >/dev/null 2>&1 || true
+}
+
+# Menu bar indicator — "🔴 m:ss" in the top bar for the whole recording,
+# Apple-native and non-intrusive (like the system mic dot, but explicit).
+# Clicking it offers "Detener y transcribir". Spawned on start, killed on
+# finish. Compiled from voice-memo-menubar.swift by install-voice-memo.sh.
+MENUBAR_BIN="$HOME/.local/bin/voice-memo-menubar"
+show_recording_indicator() {
+  if [[ -x "$MENUBAR_BIN" ]]; then
+    "$MENUBAR_BIN" >/dev/null 2>&1 &
+    disown
+  else
+    # Fallback if the indicator was never compiled: a banner is better than nothing
+    notify "🔴 Recording — ⌘⇧R to finish"
+  fi
+}
+
+close_recording_indicator() {
+  pkill -x voice-memo-menubar 2>/dev/null
+}
+
+telegram() {  # best-effort push; errors go to the log, never silent
+  local msg="$1" oc
+  [ -n "${SANBRAIN_NO_NOTIFY:-}" ] && { log "TELEGRAM (suppressed): $msg"; return 0; }
+  oc=$(command -v openclaw 2>/dev/null) || { log "TELEGRAM (openclaw unavailable): $msg"; return 0; }
+  local args=(message send --channel telegram --target "$TELEGRAM_GROUP" --message "$msg")
+  [ -n "${TELEGRAM_SANBRAIN_THREAD:-}" ] && args+=(--thread-id "$TELEGRAM_SANBRAIN_THREAD")
+  timeout 20 "$oc" "${args[@]}" >/dev/null 2>>"$LOG_FILE" || log "TELEGRAM failed: $msg"
+}
+
+whisper() {  # transcript on stdout; empty = failure
+  python3 -c "
+from openai import OpenAI
+import sys
+client = OpenAI()
+with open(sys.argv[1], 'rb') as f:
+    text = client.audio.transcriptions.create(model='whisper-1', file=f, response_format='text')
+print(text, end='')
+" "$1" 2>>"$LOG_FILE"
+}
+
+running_pid() {
+  [[ -f "$PID_FILE" ]] || return 1
+  local pid
+  pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+  [[ -n "$pid" ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  printf '%s\n' "$pid"
+}
+
+current_file() {
+  [[ -f "$CURRENT_FILE" ]] && cat "$CURRENT_FILE"
+}
+
+# Kill any recorder this script's lineage spawned that isn't the tracked pid.
+# The 2026-06-10 race left SIX concurrent ffmpegs recording — never again.
+kill_strays() {
+  local keep="${1:-}" pid
+  while IFS= read -r pid; do
+    [[ -n "$pid" && "$pid" != "$keep" ]] && kill -INT "$pid" 2>/dev/null
+  done < <(pgrep -f "avfoundation.*$RECORDINGS_DIR" 2>/dev/null)
+}
+
+# Stale state (ffmpeg died without finish — crash, cap, reboot): finalize the
+# orphaned recording instead of pretending. Runs on every invocation.
+self_heal() {
+  [[ -f "$STATE_FILE" ]] || { kill_strays "$(running_pid || true)"; return 0; }
+  running_pid >/dev/null && return 0
+  local out
+  out="$(current_file || true)"
+  rm -f "$PID_FILE" "$STATE_FILE" "$CURRENT_FILE"
+  kill_strays
+  close_recording_indicator
+  log "self-heal: stale state cleared (recording ended without finish: ${out:-unknown})"
+  if [[ -n "$out" && -s "$out" ]]; then
+    notify "Recovered unfinished recording — processing"
+    post_process "$out"
+  fi
+}
+
+# ── The pipeline: audio file → transcript → raw/ → brief queue ──
+post_process() {
+  local audio="$1" base slug fsize words transcript_file raw_target stamp_date
+  base="$(basename "$audio")"
+  slug="$(echo "${base%.*}" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')"
+  transcript_file="$TRANSCRIPTS/$slug.txt"
+  stamp_date="$(echo "$base" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)"
+  [ -z "$stamp_date" ] && stamp_date="$(date +%Y-%m-%d)"
+
+  if [[ ! -s "$audio" ]]; then
+    chime Basso
+    notify "⚠️ Recording was empty — nothing saved"
+    telegram "⚠️ voice-memo: la grabación '$base' quedó vacía. Nada que transcribir."
+    log "FAIL: empty recording $base"
+    return 1
+  fi
+
+  fsize=$(stat -f%z "$audio" 2>/dev/null || stat -c%s "$audio" 2>/dev/null)
+  if [[ "${fsize:-0}" -lt 8192 ]]; then
+    # Sub-half-second file: an accidental tap, not a memo. Discard quietly.
+    rm -f "$audio"
+    chime Basso
+    notify "Recording too short — discarded"
+    log "DISCARD: $base (${fsize}B, accidental tap)"
+    return 0
+  fi
+  if [[ "${fsize:-0}" -gt "$MAX_SIZE" ]]; then
+    chime Basso
+    notify "⚠️ Recording >25MB — left for nightly harvest (chunked)"
+    telegram "⚠️ voice-memo: '$base' pasa de 25MB; lo transcribe el harvest nocturno con chunking."
+    log "DEFER: $base >25MB — nightly harvest will chunk it"
+    return 0
+  fi
+
+  if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+    chime Basso
+    notify "⚠️ No OPENAI_API_KEY — transcription deferred to nightly"
+    telegram "⚠️ voice-memo: OPENAI_API_KEY no está en ~/.sanbrain.env — '$base' queda para el harvest nocturno."
+    log "GAP: no OPENAI_API_KEY for $base"
+    return 1
+  fi
+
+  if [[ ! -s "$transcript_file" ]]; then
+    log "Transcribing: $base"
+    whisper "$audio" > "$transcript_file"
+    if [[ ! -s "$transcript_file" ]]; then
+      rm -f "$transcript_file"
+      chime Basso
+      notify "⚠️ Transcription FAILED — see ~/.voice-memo/voice-memo.log"
+      telegram "⚠️ voice-memo: falló la transcripción de '$base'. El harvest nocturno lo reintenta. Log: ~/.voice-memo/voice-memo.log"
+      log "FAIL: whisper empty for $base"
+      return 1
+    fi
+  fi
+
+  # Whisper hallucinates stock phrases on silent audio ("Thank you so much
+  # for watching!"). A silent recording is user feedback, not vault content.
+  if grep -qiE "thank you (so much )?for watching|thanks for watching|gracias por ver|subt[ií]tulos|^you$|시청|감사합니다|ご視聴|ありがとうございました|구독" "$transcript_file"; then
+    rm -f "$transcript_file" "$audio"
+    chime Basso
+    notify "🤫 No escuché voz — grabación descartada"
+    log "DISCARD: $base (silence — whisper hallucination)"
+    return 0
+  fi
+  words=$(wc -w < "$transcript_file" | tr -d ' ')
+
+  # Title: a one-line "what was this about" — it goes in the Telegram ping
+  # (so Santiago knows what he recorded without replaying it) and in the raw
+  # file's frontmatter. claude generates it; fallback = first words verbatim.
+  local title=""
+  if [[ -x "$HOME/.local/bin/claude" ]]; then
+    title=$(timeout 60 "$HOME/.local/bin/claude" -p "Below is a voice memo transcript (Spanish/English mix, may have transcription errors). Reply with ONLY a title for it: 3-8 words, in the memo's own language, describing what it's about. No quotes, no trailing punctuation, nothing but the title.
+
+$(cat "$transcript_file")" 2>>"$LOG_FILE" \
+      | grep -m1 . | tr -d '"' | cut -c1-80)
+  fi
+  if [[ -z "$title" ]]; then
+    title=$(tr '\n' ' ' < "$transcript_file" | awk '{for(i=1;i<=8&&i<=NF;i++)printf "%s ",$i}' | sed 's/ *$/…/')
+  fi
+  log "Title: $title"
+
+  # Deliver to the vault (same format + dedup list as harvest-recordings.sh,
+  # so the nightly safety net never double-delivers)
+  raw_target="$VAULT/raw/voice-${slug}.md"
+  if [[ ! -f "$raw_target" ]]; then
+    {
+      echo "---"
+      echo "type: voice-memo"
+      echo "title: \"$title\""
+      echo "date: $stamp_date"
+      echo "source: voice-memo-hotkey"
+      echo "fidelity: verbatim-whisper"
+      echo "auto_process: true"
+      echo "---"
+      echo ""
+      echo "# $title"
+      echo ""
+      echo "Voice memo — $base"
+      echo ""
+      cat "$transcript_file"
+    } > "$raw_target" 2>>"$LOG_FILE"
+  fi
+  if [[ -s "$raw_target" ]]; then
+    grep -qxF "$slug" "$DELIVERED_LIST" 2>/dev/null || echo "$slug" >> "$DELIVERED_LIST"
+    log "Delivered: $slug → raw/ ($words words)"
+  else
+    rm -f "$raw_target"
+    chime Basso
+    notify "⚠️ Could not write to vault — transcript kept locally"
+    telegram "⚠️ voice-memo: transcrito ($words palabras) pero NO pude escribir al vault. Transcript en ~/transcripts/$slug.txt; el harvest nocturno lo entrega."
+    log "FAIL: vault write denied for $slug (transcript cached)"
+    return 1
+  fi
+
+  # Queue for the brief-feedback processor: claude reads it with today's brief
+  # as context and decides — answers to the brief get Respuestas + propagation,
+  # anything else just rides to the vault via tonight's ingest.
+  cp "$transcript_file" "$QUEUE_DIR/$slug.txt" 2>/dev/null || true
+  launchctl kickstart "gui/$(id -u)/com.sanbrain.brief-watcher" 2>/dev/null || true
+
+  chime Glass
+  notify "✅ ${title} (${words} words)"
+  telegram "🎙️ «${title}» — transcrito (${words} palabras) y entregado a raw/. Si responde al brief, las respuestas llegan en unos minutos."
+  return 0
+}
+
+start_recording() {
+  self_heal
+  if running_pid >/dev/null; then
+    notify "Already recording"
+    exit 0
+  fi
+
+  # Atomic start lock: rapid double-presses once raced two ffmpegs into the
+  # same second. mkdir is atomic — the loser of the race exits silently.
+  local lock="$STATE_DIR/start.lock"
+  if ! mkdir "$lock" 2>/dev/null; then
+    # Stale lock (>10s old, crashed mid-start) gets cleared; fresh = duplicate fire
+    local lock_age
+    lock_age=$(( $(date +%s) - $(stat -f %m "$lock" 2>/dev/null || echo 0) ))
+    [[ "$lock_age" -lt 10 ]] && exit 0
+    rmdir "$lock" 2>/dev/null
+    mkdir "$lock" 2>/dev/null || exit 0
+  fi
+
+  local stamp out
+  stamp="$(date '+%Y-%m-%d_%H-%M-%S')"
+  out="$RECORDINGS_DIR/Voice Memo $stamp.m4a"
+
+  "$FFMPEG" -hide_banner -nostdin -y \
+    -f avfoundation -i "$AUDIO_DEVICE" \
+    -t "$MAX_SECONDS" \
+    -vn -acodec aac -b:a 128k "$out" \
+    >"$FFMPEG_LOG" 2>&1 &
+
+  local pid=$!
+  # State written BEFORE the health check — a second press during the check
+  # must see "recording" and route to finish, not start another ffmpeg.
+  printf '%s\n' "$pid" > "$PID_FILE"
+  printf '%s\n' "$out" > "$CURRENT_FILE"
+  printf 'recording\n' > "$STATE_FILE"
+  rmdir "$lock" 2>/dev/null
+
+  chime Tink
+  sleep 1
+  if ! kill -0 "$pid" 2>/dev/null; then
+    rm -f "$PID_FILE" "$STATE_FILE" "$CURRENT_FILE"
+    chime Basso
+    notify "⚠️ Recording FAILED to start (mic permission?) — see ffmpeg.log"
+    telegram "⚠️ voice-memo: ffmpeg no pudo iniciar la grabación (¿permiso de micrófono?). Revisa ~/.voice-memo/ffmpeg.log"
+    log "FAIL: ffmpeg died at start (see ffmpeg.log)"
+    exit 1
+  fi
+  show_recording_indicator
+  log "Recording started: $out (pid $pid, cap ${MAX_SECONDS}s)"
+  notify "🔴 Recording — ⌘⇧R to finish (auto-stop at $((MAX_SECONDS / 3600))h)"
+
+  # Dead-man watcher: if ffmpeg exits without finish_recording (cap reached,
+  # crash, external kill), finalize and process anyway — never a stuck
+  # "recording" state again.
+  (
+    while kill -0 "$pid" 2>/dev/null; do sleep 5; done
+    if [[ -f "$STATE_FILE" && "$(cat "$CURRENT_FILE" 2>/dev/null)" == "$out" ]]; then
+      rm -f "$PID_FILE" "$STATE_FILE" "$CURRENT_FILE"
+      close_recording_indicator
+      log "watcher: ffmpeg ended on its own (cap/crash) — finalizing $out"
+      notify "Recording auto-stopped — processing"
+      post_process "$out"
+    fi
+  ) >/dev/null 2>&1 &
+  disown
+}
+
+pause_recording() {
+  local pid
+  pid="$(running_pid)" || { notify "No active recording"; exit 0; }
+  kill -STOP "$pid"
+  printf 'paused\n' > "$STATE_FILE"
+  notify "⏸ Paused — ⌘⇧R won't resume; use: voice-memo resume"
+}
+
+resume_recording() {
+  local pid
+  pid="$(running_pid)" || { notify "No active recording"; exit 0; }
+  kill -CONT "$pid"
+  printf 'recording\n' > "$STATE_FILE"
+  notify "🔴 Recording resumed"
+}
+
+finish_recording() {
+  local pid out
+  pid="$(running_pid)" || {
+    self_heal
+    notify "No active recording"
+    exit 0
+  }
+  out="$(current_file || true)"
+
+  # Remove state FIRST so the dead-man watcher stands down
+  rm -f "$PID_FILE" "$STATE_FILE" "$CURRENT_FILE"
+  close_recording_indicator
+  chime Pop
+
+  kill -CONT "$pid" 2>/dev/null || true
+  kill -INT "$pid" 2>/dev/null || true
+  for _ in {1..50}; do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  kill -0 "$pid" 2>/dev/null && kill -TERM "$pid" 2>/dev/null
+  kill_strays
+
+  log "Recording finished: $out"
+  notify "Saved: $(basename "${out:-?}") — transcribing…"
+  [[ -n "$out" ]] && post_process "$out"
+}
+
+toggle_finish() {  # the ⌘⇧R gesture: press to start, press to finish
+  # Debounce: key-repeat / nervous double-taps within 2s are one intent.
+  # Without this, a double-tap started a recording and instantly killed it.
+  local now last
+  now=$(date +%s)
+  last=$(cat "$STATE_DIR/last-toggle" 2>/dev/null || echo 0)
+  [[ $((now - last)) -lt 2 ]] && exit 0
+  printf '%s\n' "$now" > "$STATE_DIR/last-toggle"
+
+  if running_pid >/dev/null; then
+    finish_recording
+  else
+    start_recording
+  fi
+}
+
+toggle_pause() {
+  if ! running_pid >/dev/null; then
+    start_recording
+    exit 0
+  fi
+  if [[ "$(cat "$STATE_FILE" 2>/dev/null || true)" == "paused" ]]; then
+    resume_recording
+  else
+    pause_recording
+  fi
+}
+
+menu() {
+  if ! running_pid >/dev/null; then
+    start_recording
+    exit 0
+  fi
+  local state buttons choice
+  state="$(cat "$STATE_FILE" 2>/dev/null || true)"
+  if [[ "$state" == "paused" ]]; then
+    buttons='{"Finish", "Resume"}'
+  else
+    buttons='{"Finish", "Pause"}'
+  fi
+  choice="$(/usr/bin/osascript <<APPLESCRIPT
+set actionButton to button returned of (display dialog "Voice memo is ${state:-recording}." buttons $buttons default button 2 with title "Voice Memo")
+return actionButton
+APPLESCRIPT
+)"
+  case "$choice" in
+    Pause) pause_recording ;;
+    Resume) resume_recording ;;
+    Finish) finish_recording ;;
+  esac
+}
+
+status() {
+  local pid out state
+  if pid="$(running_pid)"; then
+    state="$(cat "$STATE_FILE" 2>/dev/null || printf 'recording')"
+    out="$(current_file || true)"
+    printf '%s %s\n%s\n' "$state" "$pid" "$out"
+  else
+    self_heal
+    printf 'idle\n'
+  fi
+  printf 'queue: %s pending for brief-feedback\n' "$(ls "$QUEUE_DIR" 2>/dev/null | wc -l | tr -d ' ')"
+  tail -3 "$LOG_FILE" 2>/dev/null
+}
+
+case "${1:-toggle-finish}" in
+  start) start_recording ;;
+  pause) pause_recording ;;
+  resume) resume_recording ;;
+  finish|stop) finish_recording ;;
+  toggle-finish|toggle) toggle_finish ;;
+  toggle-pause) toggle_pause ;;
+  menu) menu ;;
+  status) status ;;
+  process) shift; post_process "$1" ;;   # re-run the pipeline on an existing file
+  *)
+    printf 'Usage: voice-memo [toggle-finish|start|pause|resume|finish|toggle-pause|menu|status|process <file>]\n' >&2
+    exit 2
+    ;;
+esac
