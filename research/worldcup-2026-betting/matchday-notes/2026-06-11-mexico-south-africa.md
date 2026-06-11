@@ -40,6 +40,17 @@ Request: a multi-leg bet ("bigger multiple") on the opener. The playbook's AVOID
 
 **The actually-+EV way to get the multiple (do this first):** run the ticket as the qualifying stake on the new-user promos — **DK bet $5 → $200 (ends 6/28), FanDuel $5 → $350, bet365 $10 → $365** (ch. 5 §7). A $5 qualifier returning $200+ in bonuses is a 40x instant multiple the house pays for — the dossier's #1 ranked edge. The SGP is the vehicle, the promo is the trade.
 
+## Final ticket vs Santiago's actual board (MX book, captured pre-match)
+
+Board: MEX ML 1.42 *with 2-goal early payout* (better than US -250/-260 AND insured), draw 4.40, RSA 8.30; U2.5 1.72; BTTS-No 1.52 (de-vigs ~fair); cards o3.5 1.67; MEX corners o5.5 1.92; Jiménez anytime 2.51 / 2+ SOT 2.02. No SA-specific cards market — total cards o3.5 is the substitute channel.
+
+**Core (4.55x):** MEX ML 1.42 (early-payout version) × Tarjetas totales o3.5 1.67 × Tiros de esquina México o5.5 1.92.
+**Multiplier (9.2x):** + R. Jiménez 2.0+ tiros al arco 2.02 (SOT > anytime per ch. 10 #14; confirm he starts).
+
+Estimated leg probabilities ~72% / ~62% / ~57% (/ ~52%) → ~25% core vs 22% implied; ~13% vs 10.9% on the 4-leg. Modestly +EV if the dossier leans hold; still sized as entertainment.
+
+Skipped from the board: Portería a cero México 1.69 ≡ RSA u0.5 1.68 (keeper fade), MEX team total o1.5 1.68 (blowout narrative vs the altitude-ready visitor), BTTS-No (fair, fights keeper fade), doble oportunidad legs (dead weight). Execution: verify pago anticipado applies inside combinadas; lineups ~75 min pre-KO.
+
 ## Sizing & discipline
 
 - SGP stake: **≤1% of tournament bankroll**, entertainment sleeve. Multiplier ticket: ≤0.25%.
