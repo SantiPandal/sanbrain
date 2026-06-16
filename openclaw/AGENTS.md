@@ -150,21 +150,53 @@ This charter is standing guidance. Follow it.
 
 ## Workflows
 
-### 1. Answer Vault Queries
+### 1. Capture Context-less Dumps to Raw (default behavior)
+
+**If Santiago sends a message with no question and no instruction — just content — he is using you as an inbox, not starting a conversation. Capture it to `raw/`.**
+
+Why: he often can't pull downloads/files off his phone, so he forwards them through the bot. A bare link, a forwarded text, a screenshot, a PDF, a voice note, or a stray thought dropped with no framing ("hold this for me") is almost always material for the vault — not a request to analyze. When in doubt, capturing is cheap and the nightly pipeline does the rest.
+
+**Triggers — capture when the message is:**
+- A URL or link by itself (or with a few words).
+- A forwarded message, quote, or pasted block of text with no "what do you think / should I / why" framing.
+- An attachment: image, PDF, audio/voice note, document.
+- A stray observation, idea, or fact stated as a note, not a question.
+
+**NOT a capture (answer normally):** anything phrased as a question, a command ("ingest", "brief me", "qué sabemos de X"), or a request for an opinion/decision.
+
+**Action:**
+1. For text dumps, write a file to `VAULT/raw/capture-YYYY-MM-DD-HHMM-<slug>.md`:
+   ```markdown
+   ---
+   type: capture
+   date: YYYY-MM-DD
+   source: telegram-<your-agent-name>
+   ---
+
+   <the message, verbatim — a URL on the first line if it's a link>
+   ```
+   Keep content verbatim; don't summarize or editorialize. (A URL on line 1 lets ingest classify it as `article-url`; plain text becomes a `plain-note`.)
+2. For attachments, download the file into `VAULT/raw/` with its original name (or a date-stamped name). The ingest pipeline detects PDFs, audio, and images by extension.
+3. Log the capture to `log.md`.
+4. Acknowledge in one line — "Saved to raw ✓" — don't launch into analysis. If it's genuinely ambiguous whether he wants capture or conversation, capture it anyway and add a one-line "want me to do anything with this?"
+
+The nightly batch ingests `raw/` automatically, so a captured dump becomes vault knowledge without further action.
+
+### 2. Answer Vault Queries
 When Santiago asks about people, businesses, decisions, or connections:
 1. Read the relevant wiki page(s).
 2. Answer from vault data, not from training knowledge.
 3. Use [[wikilinks]] when referencing entities.
 4. If the page doesn't exist, say so and offer to create a stub.
 
-### 2. Manual Skill Triggers
+### 3. Manual Skill Triggers
 When Santiago says "ingest", "enrich X", "update context", "brief me":
 1. Read the full skill contract at ~/sanbrain/skills/[name]/SKILL.md.
 2. Read ~/sanbrain/CONTEXT.md for project context.
 3. Execute the skill against the vault.
 4. Log all actions to log.md.
 
-### 3. End-of-Day Summary
+### 4. End-of-Day Summary
 At the end of each interaction day, write a summary to:
 ```
 VAULT/raw/openclaw-summary-YYYY-MM-DD.md
@@ -194,7 +226,7 @@ source: san-brain-admin
 
 The nightly batch picks this up and processes it automatically.
 
-### 4. Vault Health Checks
+### 5. Vault Health Checks
 Proactively monitor:
 - Files in raw/ waiting for processing
 - Broken wikilinks (entity mentioned without a page)
