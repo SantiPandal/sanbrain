@@ -53,10 +53,18 @@ FAILURES=""
 "$SANBRAIN/scripts/vault-git.sh" checkpoint "pre-nightly" >> "$LOG" 2>&1 \
   || FAILURES="$FAILURES vault-git"
 
-# ── Phase 1: approved deletions (uses yesterday's manifest + brief,
-#     so it must run BEFORE harvest-downloads writes today's manifest) ──
-python3 "$SANBRAIN/scripts/process-approved-deletions.py" >> "$LOG" 2>&1 \
-  || echo "$(ts) WARN: approved-deletions failed" >> "$LOG"
+# ── Phase 1: Downloads lifecycle (deterministic, reversible) ──
+#   Treats ~/Downloads as a working directory: trashes only TWO-WAY DOORS
+#   (already-saved-in-vault or idle/low-stakes), promotes unsaved ONE-WAY DOORS
+#   (fiscal/legal) into the vault first, never touches crypto keys. Everything
+#   goes to macOS Trash (recoverable ~30d), never os.remove. Writes the audit
+#   ledger + a state summary harvest reads — so it must run BEFORE harvest.
+#   --proposal: the advisory LLM classification from the earlier downloads-triage
+#   job (clamped — it can only make a file safer; ignored if stale/missing). ──
+python3 "$SANBRAIN/scripts/process-downloads.py" \
+  --downloads "$HOME/Downloads" --vault "$VAULT" --state "$STATE_DIR" \
+  --proposal "$STATE_DIR/downloads-proposal.json" >> "$LOG" 2>&1 \
+  || echo "$(ts) WARN: process-downloads failed" >> "$LOG"
 
 # ── Phase 2: sensors ─────────────────────────────────────────────
 run_sensor() { # name script timeout_s

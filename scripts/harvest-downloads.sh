@@ -1,17 +1,20 @@
 #!/opt/homebrew/bin/bash
 # Sanbrain: harvest-downloads
-# Treats ~/Downloads as a desk — things accumulate, get processed nightly,
-# and stay until Santiago explicitly clears them via the morning brief.
+# Treats ~/Downloads as a WORKING DIRECTORY — Santiago saves, downloads, and
+# processes; the residue is cleared automatically and reversibly.
 #
-# Classification:
-#   SACRED  — fiscal certs, keys → never touch, never list
+# The actual lifecycle (trash/promote/age) is owned by process-downloads.py,
+# which runs in Phase 1 BEFORE this scan. This script's remaining jobs:
 #   NOISE   — .DS_Store, .localized, .part, .crdownload → auto-delete (invisible junk)
 #   HARVEST — text files (.md, .txt) → copy to raw/ for ingest, keep original
-#   DESK    — everything else → log in manifest for the brief, keep until approved
+#             (the original is verified-saved next run and trashed then)
+#   REPORT  — write a READ-ONLY manifest: what process-downloads did last night
+#             + what's still on the desk. No approval checkboxes anymore.
 #
-# Philosophy: Downloads is a desk, not a trashcan. Nothing meaningful gets
-# auto-deleted. The nightly run extracts knowledge; the morning brief shows
-# what's on the desk; Santiago checks items off to clear them.
+# Philosophy: idle & already-saved files move to macOS Trash on their own
+# (recoverable ~30d); one-way doors (fiscal/legal) are saved to the vault first;
+# crypto keys are never touched. The full audit trail is the in-vault ledger
+# wiki/logs/downloads-trash-YYYY-MM.md.
 #
 # Called by nightly.sh before the 4-skill chain.
 
@@ -129,11 +132,15 @@ while IFS= read -r -d '' f; do
     continue
   fi
 
-  # ── HARVESTABLE: copy to raw/ for ingest, keep original on desk
+  # ── HARVESTABLE: copy to raw/ for ingest, keep original on desk.
+  # Record provenance so process-downloads.py recognizes the original as SAVED
+  # (by content hash) and trashes it once idle — no vault read needed.
   if is_harvestable "$f"; then
-    cp "$f" "$VAULT/raw/$base" 2>/dev/null
+    if cp "$f" "$VAULT/raw/$base" 2>/dev/null; then
+      record_download_provenance "$f" "raw/$base"
+    fi
     HARVESTED+=("$base")
-    log "HARVESTED: $base → raw/ (original stays on desk)"
+    log "HARVESTED: $base → raw/ (original stays on desk until verified-saved)"
   fi
 
   # ── DESK: log everything (including harvested) in manifest for the brief
@@ -158,8 +165,12 @@ while IFS= read -r -d '' d; do
   log "DESK folder: $dir_base/ ($dir_size, $file_count files)"
 done < <(find "$DOWNLOADS" -maxdepth 1 -type d -not -path "$DOWNLOADS" -print0 2>/dev/null)
 
-# ── Write manifest for the morning brief ─────────────────────────
-if [ ${#DESK_ITEMS[@]} -gt 0 ] || [ ${#HARVESTED[@]} -gt 0 ]; then
+# ── Write manifest for the morning brief (READ-ONLY report) ──────
+# No approval checkboxes: process-downloads.py already acted (Phase 1). We just
+# report its summary + what's still on the desk. The audit trail is the in-vault
+# ledger wiki/logs/downloads-trash-YYYY-MM.md.
+ACTION_JSON="$STATE_DIR/downloads-last-action.json"
+if [ ${#DESK_ITEMS[@]} -gt 0 ] || [ -f "$ACTION_JSON" ]; then
   {
     echo "---"
     echo "type: downloads-manifest"
@@ -170,33 +181,48 @@ if [ ${#DESK_ITEMS[@]} -gt 0 ] || [ ${#HARVESTED[@]} -gt 0 ]; then
     echo ""
     echo "# Your Desk — $TODAY"
     echo ""
-    echo "What's sitting in Downloads right now. Check items to clear them."
+    echo "Downloads is a working directory. Idle and already-saved files move to"
+    echo "Trash automatically (recoverable ~30d); fiscal/legal one-way doors are"
+    echo "saved to the vault first. Full record: [[wiki/logs/downloads-trash-$(date +%Y-%m)]]."
     echo ""
 
-    if [ ${#HARVESTED[@]} -gt 0 ]; then
-      echo "## Harvested (content copied to vault)"
-      for f in "${HARVESTED[@]}"; do
-        echo "- $f *(safe to clear — content is in the vault)*"
-      done
-      echo ""
+    # Last night's automatic actions, rendered from the engine's state summary.
+    if [ -f "$ACTION_JSON" ]; then
+      python3 - "$ACTION_JSON" <<'PY'
+import json, sys
+try:
+    s = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+def sec(title, items, fmt):
+    if not items: return
+    print(f"## {title}")
+    for it in items:
+        print(fmt(it))
+    print()
+sec("Trashed last night (recoverable ~30d)", s.get("trashed", []),
+    lambda it: f"- **{it['name']}** — {it.get('reason') or it.get('kind','')}")
+sec("Saved to vault & cleared (one-way doors)", s.get("promoted", []),
+    lambda it: f"- **{it['name']}** → {it['copy_path']}")
+sec("Needs your hand (not auto-handled)", s.get("flagged", []),
+    lambda it: f"- **{it['name']}** — {it['reason']}")
+aging = s.get("aging", [])
+if aging:
+    print("## Aging out soon")
+    for it in sorted(aging, key=lambda x: x.get("days_left", 99)):
+        print(f"- **{it['name']}** — {it['days_left']}d until Trash (idle {it['idle_days']}d)")
+    print()
+PY
     fi
 
     if [ ${#DESK_ITEMS[@]} -gt 0 ]; then
-      # Section name is a contract: morning-brief copies "## One-Way Doors"
-      # into the brief, and process-approved-deletions.py allow-lists only
-      # checkbox items found under it. Do not rename casually.
-      echo "## One-Way Doors"
+      echo "## On the desk now"
       echo ""
-      echo "Check an item to approve DELETING it from Downloads on the next nightly run."
-      echo ""
-
-      # Group by category
       declare -A CATEGORIES
       for entry in "${DESK_ITEMS[@]}"; do
         IFS='|' read -r cat name size date <<< "$entry"
-        CATEGORIES["$cat"]+="- [ ] **$name** ($size, $date)\n"
+        CATEGORIES["$cat"]+="- $name ($size, $date)\n"
       done
-
       for cat in document data image audio video book archive folder presentation other; do
         if [ -n "${CATEGORIES[$cat]}" ]; then
           echo "### ${cat^}"

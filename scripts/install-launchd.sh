@@ -10,10 +10,13 @@
 #     when the Mac was asleep)
 #
 # Jobs:
-#   com.sanbrain.morning        07:00 daily  → morning.sh
-#   com.sanbrain.nightly        22:00 daily  → nightly.sh
-#   com.sanbrain.brief-watcher  on wiki/daily/ change (+30-min backstop)
-#                                            → process-brief-feedback.sh
+#   com.sanbrain.morning          07:00 daily  → morning.sh
+#   com.sanbrain.downloads-triage 21:00 daily  → downloads-triage.sh (claude -p:
+#                                                writes the advisory Downloads
+#                                                proposal nightly Phase 1 consumes)
+#   com.sanbrain.nightly          22:00 daily  → nightly.sh
+#   com.sanbrain.brief-watcher    on wiki/daily/ change (+30-min backstop)
+#                                              → process-brief-feedback.sh
 
 source "$(dirname "$0")/lib.sh"
 AGENTS="$HOME/Library/LaunchAgents"
@@ -69,6 +72,21 @@ install_job com.sanbrain.morning "    <key>ProgramArguments</key>
     <dict>
         <key>Hour</key>
         <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>"
+
+# Advisory LLM triage of ~/Downloads, an hour before nightly. Writes only the
+# proposal file; nightly Phase 1 (process-downloads.py) executes it, clamped.
+install_job com.sanbrain.downloads-triage "    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>$SANBRAIN/scripts/downloads-triage.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>21</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>"

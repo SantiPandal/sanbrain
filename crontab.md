@@ -94,7 +94,7 @@ counters, heartbeats, last summary). Logs in `~/sanbrain/logs/`.
 
 ```
 Sensors (6 input channels):
-  ~/Downloads/            → harvest-downloads.sh  → raw/downloads-manifest-*.md (system file)
+  ~/Downloads/            → process-downloads.py (lifecycle) + harvest-downloads.sh → raw/downloads-manifest-*.md (system file, read-only report)
   GitHub API (2 repos)    → harvest-github.sh     → raw/github-prs-*.md
   iCloud Meetings/ (.m4a) → harvest-recordings.sh → raw/voice-*.md (Whisper, chunked >25MB)
   OpenClaw conversations  → harvest-openclaw.sh   → raw/openclaw-conversations-*.md
@@ -102,9 +102,21 @@ Sensors (6 input channels):
   Calendar.app (4 cals)   → schedule-reminders.sh → raw/today-reminders-*.md + Telegram agenda push
 
                         ↓
+21:00 downloads-triage.sh (launchd, claude -p)
+  Advisory LLM pass over ~/Downloads + the vault. Writes ONLY an advisory
+  proposal (.state/downloads-proposal.json): per-file keep/disposable/save-
+  review/save-legal/crypto. Touches no files. (claude can read the vault to ask
+  "already captured?" — the deterministic executor can't.)
+                        ↓
 22:00 nightly.sh (launchd)
   Phase 0: vault-git checkpoint (undo point)
-  Phase 1: process approved deletions (strict two-factor parse)
+  Phase 1: process-downloads.py — Downloads = working directory. Consumes the
+           21:00 proposal CLAMPED (the LLM can only make a file safer — never
+           downgrade crypto/legal, never delete). Trashes only two-way doors
+           (already-saved-in-vault OR idle ≥14d), saves unsaved valuables into
+           raw/legal | raw/needs-review FIRST, never touches crypto keys. All
+           moves go to macOS Trash (recoverable ~30d), never os.remove. Audit
+           trail: wiki/logs/downloads-trash-YYYY-MM.md.
   Phase 2: 4 harvest sensors (each heartbeats; failures alert, don't halt)
   Phase 3: staged skill chain — one claude -p call PER skill:
     1. ingest:           raw/ → wiki/ → raw/archive/   (skipped if raw/ empty)
