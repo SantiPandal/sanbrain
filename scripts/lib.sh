@@ -101,3 +101,32 @@ print(text, end='')
 # Skills read these instead of grepping prose out of log.md.
 state_get() { cat "$STATE_DIR/$1" 2>/dev/null; }
 state_set() { printf '%s\n' "${2:-$(ts)}" > "$STATE_DIR/$1"; }
+
+# record_download_provenance <source_abs> <copy_rel> — note that a Downloads
+# file's content is now durably copied into the vault, so process-downloads.py
+# can recognize it as SAVED (keyed by sha256) and trash the desk original once
+# idle — even under launchd, where it can't read the iCloud vault to verify.
+# Local-only write (~/sanbrain/.state); python does robust hashing + JSON.
+record_download_provenance() {
+  python3 - "$1" "$2" "$STATE_DIR/downloads-provenance.jsonl" <<'PY' 2>/dev/null
+import datetime, hashlib, json, os, sys
+src, copy_rel, ledger = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    h = hashlib.sha256()
+    with open(src, "rb") as f:
+        for c in iter(lambda: f.read(1 << 20), b""):
+            h.update(c)
+    sha = h.hexdigest()
+    if sha == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":
+        sys.exit(0)  # empty file is never proof of a save
+    os.makedirs(os.path.dirname(ledger), exist_ok=True)
+    rec = {"ts": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+           "source_name": os.path.basename(src), "source_sha256": sha,
+           "size": os.path.getsize(src), "copy_path": copy_rel,
+           "copy_sha256": sha, "origin": "harvest"}
+    with open(ledger, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+except Exception:
+    sys.exit(0)
+PY
+}

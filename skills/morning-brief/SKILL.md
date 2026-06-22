@@ -66,9 +66,8 @@ report stylesheet (`.obsidian/snippets/sanbrain-brief.css`).
 Rules that make the layout work:
 - Checkboxes inside callouts (`> - [ ]`) are still clickable in reading view — use them.
 - Folded callouts end the title line with `-` (e.g. `> [!note]- Qué cambió anoche`).
-- The Downloads pending-deletion section must stay a PLAIN `###` heading with plain
-  `- [ ] **name**` checkboxes, OUTSIDE any callout — the deletion script parses
-  raw line starts and `> `-prefixed lines are invisible to it.
+- The Downloads report is read-only (no approval checkboxes) — it can live inside a
+  folded callout like any other reference section. Nothing parses it back.
 - Questions are numbered **Q1.**–**Q5.** so Santiago can answer them by voice
   ("Q1 sí, Q2 ...") while recording inside the note.
 
@@ -108,10 +107,12 @@ Read this to understand the current state of the knowledge system.
 > - [ ] [max 5 items, most time-sensitive first. Each states what Santiago
 >   needs to DO. Overflow goes into the folded "Qué cambió anoche" card.]
 
-### Downloads — pending deletion approval
-[ONLY when a recent downloads-manifest exists. Copy its One-Way Doors checkboxes
-verbatim — `- [ ] **name** (size, date)` — plain markdown, no callout, names
-unaltered. The deletion script validates these mechanically.]
+> [!note]- Downloads — limpieza automática
+> [ONLY when a recent downloads-manifest exists, and only if something is worth
+> noting. Read-only summary — N trashed last night (recoverable ~30d), any
+> one-way doors saved to the vault, anything flagged for your hand, what's aging
+> out soon. Link [[wiki/logs/downloads-trash-YYYY-MM]]. No checkboxes — the
+> system already acted. Flagged items / one-way doors aging out go up to Atención.]
 
 ## Threads
 | Negocio | Thread más importante |
@@ -271,14 +272,13 @@ Aggregate all items requiring Santiago's review or decision:
 3. **Stale pages**: entity pages where compiled truth references facts older than 30 days with no recent confirmation. Context files not refreshed in 7+ days.
 4. **Unresolved open threads**: action items from entity or project pages that have been open for 14+ days.
 5. **Failed skill runs**: any errors logged by other skills since the last brief.
-6. **Downloads one-way doors**: If `raw/downloads-manifest-*.md` exists for today or yesterday (manifests are system files — ingest never archives them; nightly.sh rotates them mechanically), read the newest one and copy its `## One-Way Doors` section verbatim as a sub-section of Attention Required. Present the checkboxes EXACTLY as written in the manifest — `- [ ] **name** (size, date)` — do not rephrase the bolded filenames; the deletion script validates checked names against the manifest, so altered names will never be deleted. Group header: "### Downloads — pending deletion approval".
+6. **Downloads report (read-only)**: If `raw/downloads-manifest-*.md` exists for today or yesterday (manifests are system files — ingest never archives them; nightly.sh rotates them mechanically), read the newest one. Downloads is now a working directory: `process-downloads.py` already trashed/promoted/aged items automatically (reversibly — everything goes to macOS Trash, recoverable ~30d). Do NOT render approval checkboxes. Summarize the manifest's report sections as a folded note: how many files were trashed last night, any one-way doors saved to the vault, anything flagged as "needs your hand", and what's aging out within a few days. Only surface in Atención (as an actionable item) the **flagged** items and one-way doors aging out soon — those are the only ones that may need Santiago to act. Link the audit ledger: `[[wiki/logs/downloads-trash-YYYY-MM]]`.
 
 Each attention item must be actionable: state what Santiago needs to DO, not just what happened.
 
 The Atención card shows at most 5 items, most time-sensitive first. Overflow
 items go into the folded "Qué cambió anoche" card with a count noted in Atención
-("+N more in the changes card"). The Downloads pending-deletion section is
-exempt from the cap — it is always rendered in full, as a plain section.
+("+N more in the changes card").
 
 ### Phase 5: Aggregate Active Threads
 
