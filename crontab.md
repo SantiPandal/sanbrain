@@ -96,7 +96,7 @@ counters, heartbeats, last summary). Logs in `~/sanbrain/logs/`.
 Sensors (6 input channels):
   ~/Downloads/            → process-downloads.py (lifecycle) + harvest-downloads.sh → raw/downloads-manifest-*.md (system file, read-only report)
   GitHub API (2 repos)    → harvest-github.sh     → raw/github-prs-*.md
-  iCloud Meetings/ (.m4a) → harvest-recordings.sh → raw/voice-*.md (Whisper, chunked >25MB)
+  iCloud Meetings/ (.m4a) → harvest-recordings.sh → raw/voice-*.md (Whisper, chunked >25MB; 📱 Telegram ping per memo)
   OpenClaw conversations  → harvest-openclaw.sh   → raw/openclaw-conversations-*.md
   Claude Code sessions    → ~/.claude/projects/   (read directly by claude-extract)
   Calendar.app (4 cals)   → schedule-reminders.sh → raw/today-reminders-*.md + Telegram agenda push

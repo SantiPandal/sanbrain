@@ -13,6 +13,12 @@
 #   - Apple's AI summary .txt files are delivered with `fidelity: apple-summary`
 #     so downstream skills treat the framing as unverified. Verbatim Whisper
 #     transcripts are the primary record.
+#   - Each newly delivered voice memo sends a Telegram confirmation ping
+#     («title» — transcrito, N palabras) — parity with the ⌘⇧R hotkey path,
+#     which already confirms every recording in the moment. Phone memos used to
+#     be transcribed silently; now Santiago gets the same "recibido y
+#     transcrito" feedback for them. Apple summaries (not voice memos) and
+#     silent-audio hallucinations don't ping.
 #
 # Called by nightly.sh before the 4-skill chain.
 
@@ -77,6 +83,25 @@ extract_date() {
   else
     echo "$TODAY"
   fi
+}
+
+# ── Helper: one-line "what was this about" for the confirmation ping ─────
+# Mirrors the ⌘⇧R hotkey path (scripts/voice-memo): claude best-effort, in the
+# memo's own language; falls back to the first words verbatim if claude is
+# unavailable or times out. Only the first 4KB feeds the prompt — meeting
+# transcripts can be long and a title needs only the opening.
+gen_title() {
+  local tf="$1" title="" snippet
+  snippet=$(head -c 4000 "$tf")
+  if [ -x "$CLAUDE" ]; then
+    title=$(timeout 60 "$CLAUDE" -p "Below is a voice memo transcript (Spanish/English mix, may have transcription errors). Reply with ONLY a title for it: 3-8 words, in the memo's own language, describing what it's about. No quotes, no trailing punctuation, nothing but the title.
+
+$snippet" 2>>"$LOG" | grep -m1 . | tr -d '"' | cut -c1-80)
+  fi
+  if [ -z "$title" ]; then
+    title=$(tr '\n' ' ' < "$tf" | awk '{for(i=1;i<=8&&i<=NF;i++)printf "%s ",$i}' | sed 's/ *$/…/')
+  fi
+  printf '%s' "$title"
 }
 
 # Transcription: whisper_file from lib.sh (stdout = transcript, errors → $LOG)
@@ -213,6 +238,27 @@ while IFS= read -r -d '' txt; do
   echo "$slug" >> "$DELIVERED_LIST"
   DELIVERED=$((DELIVERED + 1))
   log "Delivered: $txt_base → $(basename "$raw_target") (fidelity: $fidelity)"
+
+  # ── Confirmation ping (parity with the ⌘⇧R hotkey) ──────────────────
+  # Hotkey memos pinged at record time are already in DELIVERED_LIST, so the
+  # dedup above means they never reach here — no double-ping. What reaches
+  # here is a phone memo (Meetings/) or a hotkey memo that failed its instant
+  # ping and got recovered tonight. Apple summaries aren't voice memos → no
+  # ping. Whisper's silent-audio hallucinations ("thank you for watching")
+  # are noise → still delivered as before, just no ping.
+  if [ "$fidelity" = "verbatim-whisper" ]; then
+    if printf '%s' "$content" | grep -qiE "thank you (so much )?for watching|thanks for watching|gracias por ver|subt[ií]tulos|^you$|시청|감사합니다|ご視聴|ありがとうございました|구독"; then
+      log "No ping: $slug looks like silent-audio hallucination"
+    else
+      words=$(printf '%s' "$content" | wc -w | tr -d ' ')
+      title=$(gen_title "$txt")
+      if [[ "$slug" == voice-memo-* ]]; then
+        notify "🎙️ «${title}» — recuperado por el harvest y transcrito (${words} palabras), entregado a raw/."
+      else
+        notify "📱 «${title}» — voice memo del teléfono, transcrito (${words} palabras) y entregado a raw/."
+      fi
+    fi
+  fi
 
 done < <(find "$TRANSCRIPTS" -maxdepth 1 -name "*.txt" -type f -print0 2>/dev/null)
 
