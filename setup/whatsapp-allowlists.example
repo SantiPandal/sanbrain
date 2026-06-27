@@ -3,15 +3,16 @@
 #   cp setup/whatsapp-allowlists.example ~/.sanbrain-whatsapp-allowlist.txt
 #   cp setup/whatsapp-allowlists.example ~/.taxfreebrain-whatsapp-allowlist.txt
 #
-# sanbrain may include broader private-brain chats.
-# taxfreebrain should include only Tax-Free chats because Nico-shared TaxBrain
-# reads those drops.
+# sanbrain may include broader private-brain contacts.
+# taxfreebrain should include only Tax-Free contacts because Nico-shared
+# TaxBrain reads those drops.
 #
 # Accepted formats:
 #   5215512345678
 #   123456789012345@lid
-#   120363000000000000@g.us
+#
+# Rejected even if present:
+#   120363000000000000@g.us   # groups are not registered phone contacts
 
 # 52155XXXXXXXX        # Person name / reason
 # 123456789012345@lid  # Person name / current WhatsApp LID
-# 120363000000000000@g.us   # Group name / reason

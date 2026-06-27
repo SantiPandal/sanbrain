@@ -2,7 +2,7 @@
  * wa-capture — WhatsApp linked-device capture daemon.
  *
  * Pairs once (QR or 8-digit code), then runs forever on the Mac mini logging
- * only allowlisted chats — inbound and outbound (incl. ones sent from the
+ * only allowlisted private contacts — inbound and outbound (incl. ones sent from the
  * phone) — to a daily JSONL: log/YYYY-MM-DD.jsonl (America/Mexico_City day).
  *
  * That log is the single shared interface. harvest-whatsapp.sh turns it into
@@ -70,6 +70,14 @@ function bareId(jid) {
   return String(jid || '').split('@', 1)[0].split(':', 1)[0].replace(/[^0-9]/g, '')
 }
 
+function privateContactJid(jid) {
+  const normalized = String(jid || '').toLowerCase()
+  if (!normalized || normalized === 'status@broadcast' || normalized.endsWith('@g.us')) return false
+  if (!normalized.includes('@')) return !!bareId(normalized)
+  const domain = normalized.split('@').pop()
+  return domain === 's.whatsapp.net' || domain === 'lid'
+}
+
 function loadAllowlist() {
   try {
     const st = fs.statSync(ALLOWLIST_PATH)
@@ -79,6 +87,7 @@ function loadAllowlist() {
     for (const raw of fs.readFileSync(ALLOWLIST_PATH, 'utf8').split(/\r?\n/)) {
       const item = raw.split('#', 1)[0].trim().toLowerCase()
       if (!item) continue
+      if (!privateContactJid(item)) continue
       if (item.includes('@')) exact.add(item)
       const digits = bareId(item)
       if (digits) bare.add(digits)
@@ -93,6 +102,7 @@ function loadAllowlist() {
 }
 
 function allowlisted(jid) {
+  if (!privateContactJid(jid)) return false
   const list = loadAllowlist()
   if (!list.exact.size && !list.bare.size) return false
   const normalized = String(jid || '').toLowerCase()
@@ -127,7 +137,6 @@ function logMessage(msg) {
   try {
     if (!msg.message) return
     const jid = msg.key?.remoteJid || ''
-    if (!jid || jid === 'status@broadcast') return
     if (!allowlisted(jid)) return
     const tsSec = Number(msg.messageTimestamp?.toNumber?.() ?? msg.messageTimestamp ?? 0)
     const when = tsSec ? new Date(tsSec * 1000) : new Date()
@@ -210,7 +219,7 @@ async function start() {
           .catch(e => say('QR png error:', e?.message))
       }
     }
-    if (connection === 'open') say('connection OPEN — capturing allowlisted inbound + outbound')
+    if (connection === 'open') say('connection OPEN — capturing allowlisted private contacts inbound + outbound')
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode
       if (code === DisconnectReason.loggedOut) {

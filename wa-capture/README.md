@@ -5,8 +5,9 @@ Tracked source lives here in `~/sanbrain/wa-capture`. Runtime state lives in
 `node_modules/` are not source of truth.
 
 Local WhatsApp **linked-device** capture daemon for the Mac mini. Logs inbound +
-outbound messages only for chats selected in `~/.sanbrain-whatsapp-allowlist.txt`
-to a daily JSONL. Non-allowlisted chats are ignored before writing.
+outbound messages only for registered phone contacts selected in
+`~/.sanbrain-whatsapp-allowlist.txt` to a daily JSONL. Groups, broadcasts, and
+non-allowlisted contacts are ignored before writing.
 
 ## Pair (one time)
 
@@ -29,7 +30,9 @@ there, and loads the launchd job.
 
 ## What it does / doesn't
 
-- Captures **text + captions + message type** only for allowlisted chats, both directions.
+- Captures **text + captions + message type** only for allowlisted private contacts, both directions.
+- Does **not** capture groups or status broadcasts, even if a group JID is left
+  in an allowlist by mistake.
 - Does **not** download media, mark you online, or steal notifications
   (`markOnlineOnConnect: false`).
 - `auth_info/` (the linked-device session) and `log/` never leave this machine —
@@ -42,8 +45,8 @@ they already look:
 
 | Brain | Lands in | Picked up by | Filter |
 |---|---|---|---|
-| sanbrain | `VAULT/raw/whatsapp-DATE.md` (selected chats only) | nightly `ingest` (22:00) | `~/.sanbrain-whatsapp-allowlist.txt` |
-| taxfreebrain | `~/Downloads/whatsapp-<chat>-DATE.md` (Tax-Free selected chats only) | existing `com.taxfreebrain.watch` (every 20 min) | `~/.taxfreebrain-whatsapp-allowlist.txt`, then relevance gate |
+| sanbrain | `VAULT/raw/whatsapp-DATE.md` (selected contacts only) | nightly `ingest` (22:00) | `~/.sanbrain-whatsapp-allowlist.txt` |
+| taxfreebrain | `~/Downloads/whatsapp-<chat>-DATE.md` (Tax-Free selected contacts only) | existing `com.taxfreebrain.watch` (every 20 min) | `~/.taxfreebrain-whatsapp-allowlist.txt`, then relevance gate |
 
 `harvest-whatsapp.sh` (wired into sanbrain's `nightly.sh`) is the only mover: it
 reads the daemon's JSONL and writes those files. Per-chat for taxbrain so the

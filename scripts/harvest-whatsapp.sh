@@ -2,15 +2,16 @@
 # Sanbrain: harvest-whatsapp
 # Turns the wa-capture daemon's daily message log into files the EXISTING
 # pipelines already ingest — no new ingest logic anywhere:
-#   - sanbrain:     one allowlisted-chat digest -> raw/whatsapp-DATE.md
-#   - taxfreebrain: one file PER TAXBRAIN-ALLOWLISTED CHAT
+#   - sanbrain:     one registered-contact digest -> raw/whatsapp-DATE.md
+#   - taxfreebrain: one file PER TAXBRAIN-ALLOWLISTED CONTACT
 #                   -> ~/Downloads/whatsapp-<chat>-DATE.md, which taxbrain's
 #                   existing gated Downloads watch classifies.
 # Per-chat granularity for taxbrain is deliberate: the relevance gate runs per
 # file, so personal chats are dropped individually instead of one Tax-Free
 # message dragging a whole day of private chatter into the Nico-shared repo.
-# Allowlists are the privacy boundary: sanbrain gets its selected private-brain
-# chats; taxbrain gets only the Tax-Free subset.
+# Allowlists are the privacy boundary: sanbrain gets selected registered phone
+# contacts; taxbrain gets only the Tax-Free subset. Groups/status broadcasts are
+# rejected even if someone leaves a group JID in an allowlist.
 # Captures inbound AND outbound. Sibling of harvest-openclaw; wired in nightly.sh.
 
 source "$(dirname "$0")/lib.sh"
@@ -42,13 +43,13 @@ fi
 
 log "=== WhatsApp harvest started ==="
 
-# Prune old per-chat drops so ~/Downloads doesn't accumulate (taxbrain's ledger
+# Prune old per-contact drops so ~/Downloads doesn't accumulate (taxbrain's ledger
 # dedupes by content-hash anyway, so a lingering copy is never reprocessed).
 find "$DL_DIR" -maxdepth 1 -name 'whatsapp-*.md' -mtime +2 -delete 2>/dev/null || true
 
 # ── Build digests via python3 ───────────────────────────────────
-# Group by chat, resolve display names, render readable transcripts. Writes the
-# per-chat files to Downloads as a side effect; prints the selected-chat digest.
+# Group by private contact, resolve display names, render readable transcripts.
+# Writes per-contact files to Downloads as a side effect; prints the selected-contact digest.
 RESULT=$(WA_LOG="$WA_LOG" TODAY="$TODAY" DL_DIR="$DL_DIR" ALLOWLIST="$ALLOWLIST" TAXBRAIN_ALLOWLIST="$TAXBRAIN_ALLOWLIST" python3 -c "
 import json, os, re, sys, unicodedata
 
@@ -71,6 +72,8 @@ def load_allowlist(path):
         for raw in lines:
             item=raw.split('#',1)[0].strip().lower()
             if not item: continue
+            if item == 'status@broadcast' or item.endswith('@g.us'): continue
+            if '@' in item and item.rsplit('@',1)[1] not in ('s.whatsapp.net', 'lid'): continue
             if '@' in item: exact.add(item)
             digits=re.sub(r'[^0-9]', '', item.split('@',1)[0])
             if digits: bare.add(digits)
@@ -84,7 +87,16 @@ if not allow_exact and not allow_bare:
 
 def jid_bare(jid):
     return re.sub(r'[^0-9]', '', jid.split('@',1)[0].split(':',1)[0])
+def private_contact_jid(jid):
+    j=(jid or '').lower()
+    if not j or j == 'status@broadcast' or j.endswith('@g.us'):
+        return False
+    if '@' not in j:
+        return bool(jid_bare(j))
+    return j.rsplit('@',1)[1] in ('s.whatsapp.net', 'lid')
 def allowed_by(jid, exact, bare):
+    if not private_contact_jid(jid):
+        return False
     j=(jid or '').lower()
     return j in exact or jid_bare(j) in bare
 def number(jid):
@@ -114,7 +126,6 @@ if not chats:
     print('NO_SELECTED:'+str(skipped)); sys.exit(0)
 
 def label(jid):
-    if jid.endswith('@g.us'): return 'Group '+jid.split('@',1)[0][-6:]
     return names.get(jid) or number(jid)
 
 def render(jid):
@@ -133,7 +144,7 @@ def render(jid):
 
 def last_ts(jid): return max((r.get('ts','') for r in chats[jid]), default='')
 
-# Per-chat files -> Downloads (taxbrain gets only its Tax-Free allowlist).
+# Per-contact files -> Downloads (taxbrain gets only its Tax-Free allowlist).
 tax_written=0
 for jid in chats:
     if not allowed_by(jid, tax_exact, tax_bare):
@@ -144,17 +155,15 @@ for jid in chats:
     with open(os.path.join(dl, 'whatsapp-'+slug(lab)+'-'+today+'.md'),'w') as f:
         f.write('---\nsource: whatsapp (wa-capture)\ndate: '+today+'\nchat: '+jid+'\n---\n\n')
         f.write('# WhatsApp with '+lab+' — '+today+'\n\n')
-        if jid.endswith('@g.us'): f.write('*(group · '+jid+')*\n\n')
         f.write('\n'.join(lines)+'\n')
     tax_written+=1
 
-# Selected-chat digest -> stdout (sanbrain raw/).
+# Selected-contact digest -> stdout (sanbrain raw/).
 out=['TOTAL:'+str(total), 'SANBRAIN_CHATS:'+str(len(chats)), 'TAXBRAIN_CHATS:'+str(tax_written), 'SKIPPED:'+str(skipped)]
 for jid in sorted(chats, key=last_ts, reverse=True):
     lines=render(jid)
     if not lines: continue
     out.append('\n## '+label(jid))
-    if jid.endswith('@g.us'): out.append('*(group · '+jid+')*')
     out.append(''); out.extend(lines); out.append('')
 print('\n'.join(out))
 " 2>>"$LOG")
@@ -189,13 +198,13 @@ BODY=$(echo "$RESULT" | tail -n +5)
   echo "type: whatsapp-conversations"
   echo "date: $TODAY"
   echo "source: harvest-whatsapp"
-  echo "filter: whatsapp-allowlist"
+  echo "filter: whatsapp-registered-contact-allowlist"
   echo "auto_process: true"
   echo "---"
   echo ""
   echo "# WhatsApp — $TODAY"
   echo ""
-  echo "Selected WhatsApp conversations today ($MSG_COUNT messages across $SANBRAIN_CHATS chats), inbound and outbound."
+  echo "Selected WhatsApp phone contacts today ($MSG_COUNT messages across $SANBRAIN_CHATS chats), inbound and outbound."
   echo ""
   echo "Ignored $SKIPPED_COUNT non-allowlisted messages before rendering."
   echo ""
