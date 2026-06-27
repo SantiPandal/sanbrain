@@ -1,0 +1,6 @@
+# Runtime-only state. Source files in this folder are committed via sanbrain.
+node_modules/
+auth_info/
+log/
+run/
+*.log

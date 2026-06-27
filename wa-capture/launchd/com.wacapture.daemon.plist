@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.wacapture.daemon</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/santipandal/.nvm/versions/node/v23.3.0/bin/node</string>
+    <string>/Users/santipandal/wa-capture/daemon.mjs</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/santipandal/wa-capture</string>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/Users/santipandal/.nvm/versions/node/v23.3.0/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <!-- restart on crash, but NOT on a clean exit (loggedOut needs manual re-pair) -->
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ThrottleInterval</key><integer>15</integer>
+  <key>StandardOutPath</key><string>/Users/santipandal/wa-capture/run/daemon.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/santipandal/wa-capture/run/daemon.err.log</string>
+</dict></plist>

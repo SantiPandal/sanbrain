@@ -1,0 +1,17 @@
+# Copy this file to the home-level allowlists and replace placeholders.
+#
+#   cp setup/whatsapp-allowlists.example ~/.sanbrain-whatsapp-allowlist.txt
+#   cp setup/whatsapp-allowlists.example ~/.taxfreebrain-whatsapp-allowlist.txt
+#
+# sanbrain may include broader private-brain chats.
+# taxfreebrain should include only Tax-Free chats because Nico-shared TaxBrain
+# reads those drops.
+#
+# Accepted formats:
+#   5215512345678
+#   123456789012345@lid
+#   120363000000000000@g.us
+
+# 52155XXXXXXXX        # Person name / reason
+# 123456789012345@lid  # Person name / current WhatsApp LID
+# 120363000000000000@g.us   # Group name / reason
