@@ -181,19 +181,22 @@ When finished, write a handoff file at $handoff_out containing ONLY valid JSON:
 }
 
 # Mechanical fast-paths: skip stages with provably nothing to do.
-# System files (manifests/reminders) are script-owned and don't count as work.
-raw_count=$(find "$VAULT/raw" -maxdepth 1 -type f ! -name ".*" \
-  ! -name 'downloads-manifest-*' ! -name 'today-reminders-*' 2>/dev/null | wc -l | tr -d ' ')
+# Do NOT shell-count raw/ here. Under launchd/TCC, /bin/bash can produce a
+# false empty read of the iCloud vault even when sensors just wrote files.
+# The ingest skill runs inside Claude, which has vault access; let it decide.
 RAN_UPSTREAM=false
 
-if [ "$raw_count" -gt 0 ]; then
-  RAN_UPSTREAM=true
-  run_skill ingest 1500
+if run_skill ingest 1500; then
+  if [ ! -f "$HANDOFF_DIR/ingest.json" ] || \
+     ! grep -q '"status"[[:space:]]*:[[:space:]]*"nothing-to-do"' "$HANDOFF_DIR/ingest.json"; then
+    RAN_UPSTREAM=true
+  fi
+elif [ -f "$HANDOFF_DIR/ingest.json" ]; then
+  if ! grep -q '"status"[[:space:]]*:[[:space:]]*"nothing-to-do"' "$HANDOFF_DIR/ingest.json"; then
+    RAN_UPSTREAM=true
+  fi
 else
-  echo "$(ts) [stage:ingest] skipped — raw/ is empty" >> "$LOG"
-  printf '{"skill":"ingest","status":"nothing-to-do","notes":"raw/ empty, skipped mechanically"}\n' \
-    > "$HANDOFF_DIR/ingest.json"
-  heartbeat skill-ingest skip "raw/ empty"
+  echo "$(ts) [stage:ingest] no handoff after failure — not triggering downstream from ingest" >> "$LOG"
 fi
 
 extract_state="$STATE_DIR/claude-extract.last"

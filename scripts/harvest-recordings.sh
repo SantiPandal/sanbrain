@@ -108,38 +108,54 @@ $snippet" 2>>"$LOG" | grep -m1 . | tr -d '"' | cut -c1-80)
 
 # ── Helper: transcribe with chunking for >25MB files ────────────
 transcribe_file() { # audio_path out_txt
-  local f="$1" out="$2"
-  local fsize
+  local src="$1" out="$2" tmp_root f fsize
+
+  # iCloud sometimes raises EDEADLK when Python streams the file directly.
+  # A local copy forces materialization once, then Whisper/ffmpeg read normal bytes.
+  tmp_root=$(mktemp -d)
+  f="$tmp_root/$(basename "$src")"
+  if ! cp -p "$src" "$f" 2>>"$LOG"; then
+    log "FAIL: could not materialize $(basename "$src") from iCloud before transcription"
+    rm -rf "$tmp_root"
+    return 1
+  fi
+
   fsize=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null)
 
   if [ "${fsize:-0}" -le "$MAX_SIZE" ]; then
     whisper_file "$f" > "$out"
-    [ -s "$out" ] && return 0
-    rm -f "$out"; return 1
+    if [ -s "$out" ]; then
+      rm -rf "$tmp_root"
+      return 0
+    fi
+    rm -f "$out"
+    rm -rf "$tmp_root"
+    return 1
   fi
 
   # Chunk path
   if ! command -v ffmpeg >/dev/null 2>&1; then
     log "GAP: $(basename "$f") is >25MB and ffmpeg is not installed — cannot chunk. brew install ffmpeg"
+    rm -rf "$tmp_root"
     return 2
   fi
-  local tmpdir
-  tmpdir=$(mktemp -d)
+  local chunk_dir
+  chunk_dir=$(mktemp -d)
   log "Chunking $(basename "$f") ($(( fsize / 1048576 ))MB) for transcription"
-  if ! ffmpeg -hide_banner -loglevel error -i "$f" -f segment -segment_time 600 -c copy "$tmpdir/chunk-%03d.m4a" 2>>"$LOG"; then
+  if ! ffmpeg -hide_banner -loglevel error -i "$f" -f segment -segment_time 600 -c copy "$chunk_dir/chunk-%03d.m4a" 2>>"$LOG"; then
     log "FAIL: ffmpeg chunking failed for $(basename "$f")"
-    rm -rf "$tmpdir"; return 1
+    rm -rf "$chunk_dir" "$tmp_root"; return 1
   fi
   : > "$out.tmp"
   local chunk ok=true
-  for chunk in "$tmpdir"/chunk-*.m4a; do
+  for chunk in "$chunk_dir"/chunk-*.m4a; do
     [ -e "$chunk" ] || continue
     if ! whisper_file "$chunk" >> "$out.tmp"; then
       ok=false; break
     fi
     printf '\n' >> "$out.tmp"
   done
-  rm -rf "$tmpdir"
+  rm -rf "$chunk_dir" "$tmp_root"
   if [ "$ok" = true ] && [ -s "$out.tmp" ]; then
     mv "$out.tmp" "$out"; return 0
   fi

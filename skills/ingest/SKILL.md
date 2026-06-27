@@ -71,6 +71,21 @@ or `type: calendar-reminders` are script-owned interface files (the morning brie
 reads them; nightly.sh archives them mechanically). Skip them silently: do NOT
 extract from them, do NOT archive them, do NOT log a warning.
 
+**Batching / starvation rule.** Raw can accumulate faster than one LLM run can
+clean it. If there are more than 40 processable files in `raw/`, process a batch
+of at most 40 and leave the rest in place for the next run. Never let old backlog
+starve fresh phone recordings. Batch priority:
+
+1. Today's and yesterday's `voice-*` files first, especially `voice-memo-*` and
+   `voice-voice-memo-*` from phone recordings.
+2. Today's and yesterday's machine digests (`app-logs`, `whatsapp-conversations`,
+   `openclaw-conversations`, `browser-history`, `x-bookmarks`) if present.
+3. Newest remaining processable files by modification time.
+
+When batching, log the total raw count, process count, and deferred count. Set
+the handoff `status` to `partial` if any processable files remain after the run.
+Do not archive deferred files and do not call them skipped.
+
 For each file, classify by type using this decision tree:
 
 | Extension / Signal | Type | Handler |
